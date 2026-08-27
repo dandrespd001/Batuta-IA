@@ -12,6 +12,7 @@ demás: **nada se declara, se demuestra.**
 
 - `docs/ESQUEMA_MANIFIESTO.md` — el esquema de manifiestos y por qué cada campo existe.
 - `docs/medidas/DSH_HEADLESS.md` — las mediciones sobre las que se apoya el diseño.
+- `docs/medidas/DELEGACION_MANIFEST.md` — la primera delegación real, medida y verificada.
 
 ## Estado
 
@@ -19,7 +20,7 @@ demás: **nada se declara, se demuestra.**
 |---|---|---|
 | **0** | **Desbloqueo y medición del transporte** | **hecho** (`docs/medidas/`) |
 | **1** | **Workspace, `batuta-contract`, gates** | **hecho** |
-| **2** | **Manifiestos** | **en curso — fase roja de TDD** |
+| **2** | **Manifiestos** | **hecho** |
 | 3 | Ejecución, plugins, recibos, leases | pendiente |
 | 4 | Política y benchmark | pendiente |
 | 5 | Superficies MCP y CLI | pendiente |
@@ -32,20 +33,24 @@ El primer beneficio real llega en la Fase 3, no al final.
 ```
 Cargo.toml                       workspace
 crates/batuta-contract/          tipos, errores y vocabularios cerrados. CERO E/S
-crates/batuta-manifest/          carga y validación de manifiestos  [firmas + tests en rojo]
+crates/batuta-manifest/          carga y validación de manifiestos
 providers/dsh.toml               DeepSeek Harness
 providers/abacus.toml            Abacus.AI — el proveedor que originó el proyecto
 docs/ESQUEMA_MANIFIESTO.md       el esquema y su justificación
 docs/medidas/DSH_HEADLESS.md     lo que se midió del transporte, con las corridas
+docs/medidas/DELEGACION_MANIFEST.md  la primera delegación real, verificada
 scripts_ci/local_gates.sh        los gates permanentes
 .github/workflows/ci.yml         los mismos gates en CI
 ```
 
 `batuta-contract` no depende de ningún otro crate de batuta y todos dependerán de él.
 
-**`batuta-manifest` está hoy en la fase roja de TDD**, y está declarado: las firmas
-públicas existen, los catorce tests existen y fallan, y los cuerpos son `todo!()`. Los
-tests fijan los *mensajes* de error, no sólo los tipos —el que rechaza un `parser`
+`batuta-manifest` valida en dos mitades a propósito: `parse()` es **pura** —vocabularios,
+formas, llaves, cobertura de mapas— y catorce de sus dieciocho pruebas corren sin tocar el
+disco; `verify_executable()` es la que mira la máquina, y es la que paga R1: un ejecutor
+irresoluble falla **al cargar**, no después de pagar la corrida.
+
+Sus pruebas fijan los *mensajes* de error, no sólo los tipos —el que rechaza un `parser`
 inválido exige que el mensaje liste los cuatro valores válidos—, porque un error que no
 enumera lo que valía es el fallo que R8 paga.
 
@@ -111,3 +116,18 @@ Dos consecuencias que están en el código:
 2. **Una comprobación estática que enseña tu propio valor puesto no es evidencia.** Es la
    misma trampa por la que un canario de este proyecto devolvía «sin cuota» en 126 ms sin
    tocar la red: leía el fichero de política que él mismo debía informar.
+
+## Sobre delegar
+
+Los cuerpos de `batuta-manifest` no los escribió una persona: los escribió un modelo
+externo, en un worktree aislado, con el modelo fijado y la contención declarada, y el
+resultado se revisó línea a línea antes de integrarlo. Está medido en
+`docs/medidas/DELEGACION_MANIFEST.md`.
+
+Lo que hizo que funcionara no fue el modelo: fueron **los tests escritos antes**, que
+fijaban los mensajes y no sólo los tipos. Lo único que salió mal —un `deny_unknown_fields`
+que faltaba, y que dejaba pasar en silencio un campo mal escrito— es exactamente lo único
+que no estaba cubierto por un test.
+
+Es la misma regla del proyecto, aplicada a su propia construcción: **nada se declara, se
+demuestra.**
