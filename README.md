@@ -3,16 +3,23 @@
 Orquestador de delegación en Rust. **Añadir un proveedor es un fichero, nunca un parche.**
 
 El núcleo no conoce ningún proveedor: los lee de manifiestos declarativos releídos en
-cada invocación. Diseño y motivación en
-`../CHUNSA001/docs/briefs/BATUTA_ARRANQUE.md`.
+cada invocación.
+
+Nació de un fallo concreto y medido: en el orquestador anterior, el transporte de un
+proveedor estaba **declarado en un registro y ausente del otro**, así que toda tarea
+enrutada allí moría *después* de pagar la corrida. De ahí sale la regla que ordena todo lo
+demás: **nada se declara, se demuestra.**
+
+- `docs/ESQUEMA_MANIFIESTO.md` — el esquema de manifiestos y por qué cada campo existe.
+- `docs/medidas/DSH_HEADLESS.md` — las mediciones sobre las que se apoya el diseño.
 
 ## Estado
 
 | Fase | Qué | Estado |
 |---|---|---|
-| 0 | Desbloqueo de DeepSeek y retirada de la clave en claro | pendiente, fuera de este repo |
+| **0** | **Desbloqueo y medición del transporte** | **hecho** (`docs/medidas/`) |
 | **1** | **Workspace, `batuta-contract`, gates** | **hecho** |
-| 2 | Manifiestos y credenciales | pendiente |
+| **2** | **Manifiestos** | **en curso — fase roja de TDD** |
 | 3 | Ejecución, plugins, recibos, leases | pendiente |
 | 4 | Política y benchmark | pendiente |
 | 5 | Superficies MCP y CLI | pendiente |
@@ -25,11 +32,22 @@ El primer beneficio real llega en la Fase 3, no al final.
 ```
 Cargo.toml                       workspace
 crates/batuta-contract/          tipos, errores y vocabularios cerrados. CERO E/S
+crates/batuta-manifest/          carga y validación de manifiestos  [firmas + tests en rojo]
+providers/dsh.toml               DeepSeek Harness
+providers/abacus.toml            Abacus.AI — el proveedor que originó el proyecto
+docs/ESQUEMA_MANIFIESTO.md       el esquema y su justificación
+docs/medidas/DSH_HEADLESS.md     lo que se midió del transporte, con las corridas
 scripts_ci/local_gates.sh        los gates permanentes
 .github/workflows/ci.yml         los mismos gates en CI
 ```
 
 `batuta-contract` no depende de ningún otro crate de batuta y todos dependerán de él.
+
+**`batuta-manifest` está hoy en la fase roja de TDD**, y está declarado: las firmas
+públicas existen, los catorce tests existen y fallan, y los cuerpos son `todo!()`. Los
+tests fijan los *mensajes* de error, no sólo los tipos —el que rechaza un `parser`
+inválido exige que el mensaje liste los cuatro valores válidos—, porque un error que no
+enumera lo que valía es el fallo que R8 paga.
 
 ## Gates
 
@@ -72,3 +90,24 @@ Es R2 aplicada al propio código: nada se declara, se demuestra.
   hay una prueba que lo fija.
 - **`ProviderKind` sólo tiene `cli`.** Porque sólo `cli` está demostrado. Añadir
   `http` exigirá un manifiesto y un canario que lo ejerzan (R2).
+
+
+## El hallazgo que más cambió el diseño
+
+Al medir el transporte apareció esto, y merece contarse porque es una clase de fallo, no
+una anécdota:
+
+Para fijar qué modelo ejecuta un encargo, la vía documentada era una capa de parche. Se
+aplicó, y la herramienta de inspección confirmó que el árbol de configuración había
+cambiado. **La corrida fue a otro modelo igualmente.** Tres veces. Lo delataba el registro
+de sesión, no la inspección: por encima de la capa de parche había un documento de ajustes
+del usuario que ganaba en silencio.
+
+Dos consecuencias que están en el código:
+
+1. **El recibo anota lo observado, nunca lo pedido.** Es el vocabulario
+   `ProvenanceSource`: `session_log` es una medición y `declared` una promesa. Un recibo
+   que anota lo pedido miente justo sobre lo que le da valor.
+2. **Una comprobación estática que enseña tu propio valor puesto no es evidencia.** Es la
+   misma trampa por la que un canario de este proyecto devolvía «sin cuota» en 126 ms sin
+   tocar la red: leía el fichero de política que él mismo debía informar.
