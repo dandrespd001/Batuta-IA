@@ -1,0 +1,70 @@
+# Abacus.AI — el proveedor que originó batuta.
+#
+# El síntoma que destapó el proyecto: el transporte `abacus_cli` estaba declarado
+# en provider_adapters.py:92 del orquestador viejo y **no tenía ejecutor**. Toda
+# tarea enrutada a Abacus moría en adapters.py:377 con `unsupported supervised
+# transport`, y ZAI GLM 5.3 Flash quedaba detrás de esa pared.
+#
+# Este fichero es la prueba de la tesis: dar de alta el proveedor es un fichero,
+# y no se toca una línea del núcleo.
+
+schema_version = 1
+id             = "abacus"
+kind           = "cli"
+
+# Medido el 2026-08-27: `command -v abacusai` -> ~/.local/bin/abacusai, que es un
+# enlace a shim.cjs. La versión instalada es la 2.6.11, la única que conoce el
+# modelo que se quiere usar. El pin del orquestador viejo decía 2.6.9, existía, y
+# el resolutor la prefería: R11 se paga aquí.
+[executable]
+program       = "~/.local/bin/abacusai"
+version_pin   = "2.6.11"
+version_probe = ["--version"]
+sha256        = "f31200c9e063a16999c69a6bac073635c6e4f17f4e7b0e3302eeb28d40d61f53"
+resolve       = ["~/.local/bin/abacusai", "$PATH"]
+
+[auth]
+method     = "oauth_cli"
+store_path = "~/.abacusai"
+
+# `--disallowed-tools "*"` y `--no-agents-md` existen y están verificados en la
+# ayuda de la 2.6.11.
+#
+# NUNCA se emite `--dangerously-skip-permissions`, que la ayuda ofrece: batuta
+# contiene por nombre, y una bandera que apaga la comprobación entera es lo
+# contrario de contener.
+#
+# `prompt.via = "argv"` sale de la forma que documenta su propia ayuda
+# (`abacusai [options] [prompt]`). **No está medido si acepta stdin**: se resuelve
+# con el canario de la Fase 3, no adivinando aquí.
+[invoke]
+argv = ["--print", "--model", "{route_model}", "--output-format", "text",
+        "--permission-mode", "normal", "--disallowed-tools", "*", "--no-agents-md"]
+workdir = "worktree"
+prompt  = { via = "argv" }
+
+[env]
+allow = ["HOME", "PATH", "TERM", "LANG"]
+set   = { ABACUSAI_NO_TELEMETRY = "1" }
+
+[response]
+parser = "plain_text"
+
+# No hay registro de sesión legible como el de dsh: la procedencia se declara y
+# el canario la contrasta. Es más débil que `session_log`, y se dice.
+[provenance]
+source = "declared"
+
+# El catálogo vive en el servidor. Búsqueda exhaustiva de la cadena exacta
+# «ZAI GLM 5.3 Flash» en el paquete instalado: CERO coincidencias. No se puede
+# validar estáticamente y no se intenta: lo detecta el canario (ver §4 del
+# esquema).
+[[models]]
+id              = "abacus-glm-5.3-flash"
+route_model     = "ZAI GLM 5.3 Flash"
+roles           = ["review", "implementation"]
+max_sensitivity = "internal"
+
+[canary]
+prompt = "Responde exactamente con: {token}"
+expect = "token_echo"

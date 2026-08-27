@@ -1,0 +1,25 @@
+[workspace]
+resolver = "3"
+members = ["crates/batuta-contract"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.98"
+license = "MIT OR Apache-2.0"
+
+[workspace.dependencies]
+serde = { version = "1.0.229", default-features = false, features = ["derive", "alloc"] }
+serde_json = "1.0"
+toml = "0.9"
+
+# `cargo clippy --workspace -- -D warnings` es gate permanente (§7 del brief),
+# asi que todo lo que aparezca aqui es, en la practica, error de compilacion.
+[workspace.lints.rust]
+missing_docs = "warn"
+unreachable_pub = "warn"
+
+[workspace.lints.clippy]
+pedantic = { level = "warn", priority = -1 }
+module_name_repetitions = "allow"
+must_use_candidate = "allow"

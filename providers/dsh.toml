@@ -1,0 +1,161 @@
+# DeepSeek Harness — el transporte de delegación de batuta.
+#
+# Todo lo de aquí está medido; la evidencia está en docs/medidas/DSH_HEADLESS.md.
+# Nada se declara sin canario que lo demuestre (R2).
+
+schema_version = 1
+id             = "dsh"
+kind           = "cli"
+
+# ── El ejecutable ────────────────────────────────────────────────────────────
+# NO se invoca con `npx`: cada invocación de npx escribe líneas `npm notice` en
+# stderr, y el invariante documentado de headless es que una corrida con éxito
+# deja stderr vacío. Con npx de por medio, un canario que lea stderr nunca lo
+# vería limpio. Se invoca el enlace directo.
+#
+# Vive en la caché de npx, bajo un directorio con hash, en canal `rc`: un
+# `npx @deepseek-ai/dsh@latest` lo reescribe sin avisar. Por eso `version_pin`
+# no basta y hay `sha256` (R11).
+[executable]
+program       = "~/.npm/_npx/1e7f6d9597241db0/node_modules/.bin/dsh"
+version_pin   = "0.1.1-rc.2"
+version_probe = ["-V"]
+sha256        = "c0226687bb20f45c603ec6fe50f3de16d1c3510c3a803304ec575ef9bc366c62"
+resolve       = ["~/.npm/_npx/1e7f6d9597241db0/node_modules/.bin/dsh"]
+
+# ── Credenciales ─────────────────────────────────────────────────────────────
+# dsh posee su propio almacén y batuta no aporta ningún secreto. El orden que
+# usa, ganador primero: entorno heredado, $DSH_HOME/.credentials.yaml,
+# <cwd>/.env, $DSH_HOME/.env  (dsh-credentials-local/README.md:9-12).
+# Su configuración lleva sólo `apiKeyEnv`, nunca el valor: R10 ya implementado
+# por el propio proveedor.
+[auth]
+method     = "oauth_cli"
+store_path = "~/.dsh"
+
+# ── Invocación ───────────────────────────────────────────────────────────────
+# El prompt viaja por argv porque es la única vía: medido, `echo … | dsh` responde
+# «error: a task is required» con exit 1, y no hay bandera de fichero. El techo de
+# sensibilidad de `argv` lo fija el contrato, no este fichero.
+[invoke]
+argv    = ["--profile", "headless", "--patch", "{run_dir}/composicion.yml", "{prompt}"]
+workdir = "worktree"
+prompt  = { via = "argv" }
+
+# ── Entorno (R5) ─────────────────────────────────────────────────────────────
+# `DSH_PERMISSION_MODE` se deniega a propósito: la composición base lo lee para
+# decidir el modo de sandbox, y batuta fija ese modo explícitamente más abajo.
+# Una variable heredada que moviera la contención sería exactamente el fallo que
+# R5 paga.
+[env]
+allow = ["HOME", "PATH", "TERM", "LANG"]
+deny  = ["DSH_PERMISSION_MODE", "DSH_TELEMETRY_MODE", "DSH_TELEMETRY_OTLP_URL"]
+
+[response]
+parser = "plain_text"
+
+# ── Procedencia ──────────────────────────────────────────────────────────────
+# El recibo anota lo que la máquina registró, no lo que batuta pidió. Se pidió
+# deepseek-v4-flash tres veces y corrió MiniMax las tres: sin esto, el recibo
+# habría mentido.
+[provenance]
+source = "session_log"
+
+# ── Sustituciones derivadas del encargo ──────────────────────────────────────
+# Cada mapa cubre un vocabulario cerrado **entero**: si mañana se añade un
+# `write_mode`, este fichero falla al cargar en vez de elegir en silencio.
+[substitutions.sandbox_mode]
+read_only       = "read-only"
+validated_patch = "workspace-write"
+validated_apply = "workspace-write"
+
+[substitutions.preset]
+read_only       = "batuta-lectura"
+validated_patch = "batuta-escritura"
+validated_apply = "batuta-escritura"
+
+# ── Fichero de corrida 1: la capa de composición ─────────────────────────────
+# Sólo redirige y fija. Nótese que un parche **reemplaza la config entera** de la
+# fila que toca (dsh-base/cordis.patch.yml, cabecera), así que cada fila se
+# restata completa: los tres presets de fábrica van aquí porque quitarlos sería
+# un efecto colateral silencioso.
+[[runtime_files]]
+path   = "composicion.yml"
+format = "yaml"
+
+[[runtime_files.entry]]
+id = "settings"
+[runtime_files.entry.config]
+path = "{run_dir}/settings.yaml"
+
+[[runtime_files.entry]]
+id = "agent-default-model"
+[runtime_files.entry.config]
+provider = "{route_provider}"
+model    = "{route_model}"
+
+# El ancla de la jaula: explícita, no heredada del cwd ni del entorno.
+[[runtime_files.entry]]
+id = "sandbox-policy"
+[runtime_files.entry.config]
+mode          = "{sandbox_mode}"
+workspaceRoot = "{workdir}"
+
+# `never` NO es «acepta todo»: es rechazo determinista de lo que pida escalada
+# (dsh-user-approval/lib/index.js:36). Es lo que R5 exigía después de que
+# `--approval-mode auto` diera auto_accept 1 y 0 en dos canarios seguidos.
+[[runtime_files.entry]]
+id = "approval"
+[runtime_files.entry.config]
+policy = "never"
+
+[[runtime_files.entry]]
+id = "permission"
+[runtime_files.entry.config.presets.read-only]
+sandbox  = "read-only"
+approval = "ask"
+[runtime_files.entry.config.presets.workspace-write]
+sandbox  = "workspace-write"
+approval = "ask"
+[runtime_files.entry.config.presets.danger-full-access]
+sandbox  = "danger-full-access"
+approval = "never"
+[runtime_files.entry.config.presets.batuta-lectura]
+sandbox  = "read-only"
+approval = "never"
+[runtime_files.entry.config.presets.batuta-escritura]
+sandbox  = "workspace-write"
+approval = "never"
+
+# ── Fichero de corrida 2: el documento de settings ───────────────────────────
+# Éste es el que manda. La cadena es: schema defaults -> base de composición ->
+# **sección del documento de usuario** (dsh-settings/README.md:5). Por eso el
+# --patch solo no fijaba el modelo.
+#
+# Que batuta lo posea no es celo: el documento del anfitrión es estado vivo,
+# editado a mano mientras batuta corre. Se le vio cambiar de modelo tres veces
+# en media hora.
+[[runtime_files]]
+path   = "settings.yaml"
+format = "yaml"
+
+[runtime_files.content.agent-default-model]
+provider = "{route_provider}"
+model    = "{route_model}"
+
+[runtime_files.content.permission]
+defaultPreset = "{preset}"
+
+# ── Modelos ──────────────────────────────────────────────────────────────────
+# UNO, porque uno es el que tiene canario (R2). Los demás entran cuando su
+# canario pase, no antes: el manifiesto no es una lista de deseos.
+[[models]]
+id              = "dsh-deepseek-v4-flash"
+route_provider  = "deepseek-official"
+route_model     = "deepseek-v4-flash"
+roles           = ["implementation", "boilerplate", "tests", "bulk_refactor"]
+max_sensitivity = "internal"
+
+[canary]
+prompt = "Responde exactamente con: {token}"
+expect = "token_echo"
