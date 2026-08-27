@@ -1,3 +1,4 @@
+// generado: deepseek-v4-flash - revisado: Arquitecto
 //! Traducción entre el vocabulario de batuta y el del proveedor.
 //!
 //! dsh llama `workspace-write` a lo que batuta llama `validated_patch`. Meter esa
@@ -41,13 +42,18 @@ pub const BUILTIN_PLACEHOLDERS: &[&str] = &[
 /// Los mapas de sustitución de un manifiesto, ya validados.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Substitutions {
-    _map: BTreeMap<String, BTreeMap<WriteMode, String>>,
+    map: BTreeMap<String, BTreeMap<WriteMode, String>>,
 }
 
 impl Substitutions {
+    /// Construye el mapa ya validado. Sólo lo usa la carga.
+    pub(crate) fn new(map: BTreeMap<String, BTreeMap<WriteMode, String>>) -> Self {
+        Self { map }
+    }
+
     /// Las llaves declaradas, en orden alfabético.
     pub fn declared_keys(&self) -> Vec<&str> {
-        todo!("las claves del mapa, ordenadas")
+        self.map.keys().map(String::as_str).collect()
     }
 
     /// Todas las llaves admitidas: incorporadas y declaradas.
@@ -55,14 +61,23 @@ impl Substitutions {
     /// Es la lista que sale en el error de R8 cuando alguien escribe una que no
     /// existe.
     pub fn allowed_placeholders(&self) -> Vec<String> {
-        todo!("BUILTIN_PLACEHOLDERS + declared_keys(), sin repetidos")
+        let mut out: Vec<String> = BUILTIN_PLACEHOLDERS
+            .iter()
+            .map(|s| (*s).to_string())
+            .collect();
+        for key in self.map.keys() {
+            if !out.iter().any(|admitida| admitida == key) {
+                out.push(key.clone());
+            }
+        }
+        out
     }
 
     /// El valor de una llave declarada para un modo de escritura.
     ///
     /// Devuelve `None` si la llave no está declarada. **No puede devolver `None`
     /// por un `WriteMode` no cubierto**: la carga ya lo habría rechazado.
-    pub fn resolve(&self, _key: &str, _write_mode: WriteMode) -> Option<&str> {
-        todo!("lookup en el mapa")
+    pub fn resolve(&self, key: &str, write_mode: WriteMode) -> Option<&str> {
+        self.map.get(key)?.get(&write_mode).map(String::as_str)
     }
 }

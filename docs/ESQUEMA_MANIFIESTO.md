@@ -77,9 +77,14 @@ la primera línea si el núcleo llevara dentro el vocabulario de dsh.
 
 Reglas:
 
-- `path` es **relativo al directorio de corrida** y se rechaza si es absoluto, si sube con
-  `..` o si cae dentro del worktree. Los ficheros de configuración de la corrida no son
-  material del encargo y no deben aparecer en el `git diff`.
+- `path` es **relativo al directorio de corrida** y se rechaza al cargar si es absoluto o
+  si sube con `..`. Los ficheros de configuración de la corrida no son material del encargo
+  y no deben aparecer en el `git diff`.
+- La tercera comprobación —que no caiga **dentro del worktree**— **no puede hacerse aquí**,
+  y decirlo importa más que tenerla: `parse()` es puro y el worktree no existe todavía
+  cuando se carga un manifiesto. Pertenece a `batuta-exec`, que sí conoce el directorio de
+  corrida y el worktree a la vez. Esta corrección salió de una delegación que se paró ante
+  la contradicción en vez de fingir que la implementaba.
 - Se materializan **antes** de arrancar el proceso y se borran al cerrar el recibo, salvo
   que la corrida falle: entonces se conservan, porque son parte de la evidencia.
 - Sustituciones admitidas en `content` y en `argv`: `{model}`, `{route_model}`,
@@ -211,6 +216,33 @@ cargar. El canario es la única red, y por eso no es opcional.
 
 ---
 
+## §4 bis Herramientas del proveedor: no se apagan, se observan
+
+**Decisión del Arquitecto:** las herramientas web quedan **siempre disponibles**. La
+composición de `headless` monta `web`, `web-search-deepseek` y `tool-web`, y batuta no las
+desactiva. No se complica el manifiesto con perillas de apagado.
+
+Eso parece una renuncia y no lo es, porque cambia *prevenir* por **demostrar**, que es la
+regla que ordena todo el proyecto:
+
+> El registro de sesión anota cada `tool/call` con su nombre. El recibo puede decir
+> exactamente qué herramientas se usaron, en vez de prometer cuáles estaban prohibidas.
+
+En la delegación real de `batuta-manifest`, sobre 95 llamadas: `bash` 66, `read` 16,
+`write` 5, `edit` 5, `todo_write` 2, `str_replace_editor` 1, y **cero** de web. La
+herramienta estaba ofrecida y no se usó — y eso es un hecho medido, no una promesa.
+
+**La regla que se sigue, y va al recibo:** un encargo cuyo `TaskSpec` no declara
+`web_research` y cuyo registro muestra llamadas web es un **recibo en rojo**. No un aviso,
+no una nota al pie. Es el mismo criterio que R2 aplica a las capacidades del modelo, ahora
+del lado de lo que la corrida hizo de verdad.
+
+Y tiene una ventaja sobre apagarlas: una perilla de apagado hay que mantenerla al día con
+la composición de dsh, que batuta no posee. Un observador del registro sigue funcionando
+aunque dsh añada mañana una herramienta que hoy no existe.
+
+---
+
 ## §5 Lo que este esquema **no** hace
 
 - **No valida el catálogo de modelos.** No puede: ver §4.
@@ -218,23 +250,132 @@ cargar. El canario es la única red, y por eso no es opcional.
   significa «el CLI posee su almacén y batuta no aporta ningún secreto». Ningún proveedor
   usa hoy `sealed_credential`, y `batuta-cred` se queda en superficie mínima.
 - **No fija el modelo por `argv`.** Se intentó, se midió, no funciona.
+- **No implementa criptografía.** El `sha256` de `[executable]` lo calcula el crate `sha2`
+  de RustCrypto. Hubo una versión escrita a mano —porque el árbol no traía crate de
+  digest— y se sustituyó: cien líneas de FIPS 180-4 dentro de un cargador de manifiestos
+  son una deuda que alguien tiene que auditar para siempre. Las pruebas de borde de bloque
+  (`tests/sha256_bordes.rs`) se quedaron, y ahora vigilan al crate desde fuera.
 
 ---
 
-## §6 Criterio de aceptación de la Fase 2
+## §6 Criterio de aceptación de la Fase 2 — **cumplido**
 
-Binario, y sale del brief §7:
+Binario, y cada punto tiene su prueba en `crates/batuta-manifest/tests/`. Estado al cierre
+de la fase: **18 en verde**, los cuatro gates en código 0.
 
-1. `batuta providers list` enumera **dos** proveedores leídos de fichero.
-2. Un manifiesto roto **falla al cargar nombrando el campo y la línea** (R1).
-3. Un `[[runtime_files]]` con `path` absoluto, con `..`, o que caiga dentro del worktree,
-   falla al cargar (no al ejecutar).
-4. Una llave de sustitución desconocida falla al cargar listando las admitidas (R8).
-5. Un `[substitutions.<clave>]` que no cubra todas las variantes de su vocabulario falla al
-   cargar nombrando la que falta.
-6. Declarar `entry` y `content` en el mismo `[[runtime_files]]`, o ninguno, falla al cargar.
-7. `bash scripts_ci/local_gates.sh` en código 0.
+| # | Criterio | Prueba |
+|---|---|---|
+| 1 | Los **dos** proveedores se leen de fichero | `los_dos_manifiestos_del_repositorio_cargan` |
+| 2 | Un valor fuera de vocabulario falla nombrando fichero, línea y valores válidos (R1, R8) | `un_valor_fuera_de_vocabulario_falla_nombrando_fichero_linea_y_validos` |
+| 3 | Un `path` absoluto o con `..` falla **al cargar**, no al ejecutar | `una_ruta_absoluta_…`, `una_ruta_que_se_sale_…` |
+| 4 | Una llave de sustitución desconocida lista las admitidas | `una_llave_desconocida_lista_todas_las_admitidas` |
+| 5 | Un mapa de sustitución incompleto nombra la variante que falta | `un_mapa_de_sustitucion_incompleto_nombra_la_variante_que_falta` |
+| 6 | `entry` y `content` juntos, o ninguno, falla al cargar | `declarar_lista_y_mapa_…`, `no_declarar_ni_lista_ni_mapa_…` |
+| 7 | Un ejecutable irresoluble falla al cargar y dice dónde buscó (R1) | `un_ejecutable_que_no_existe_falla_al_cargar_y_dice_donde_buscó` |
+| 8 | **Un campo desconocido falla al cargar y lo nombra** | `un_campo_desconocido_falla_al_cargar_y_lo_nombra` |
+| 9 | **Una versión de esquema no soportada tiene su propio error** | `una_version_de_esquema_no_soportada_tiene_su_propio_error` |
+| 10 | El `sha256` acierta en todos los bordes de bloque, y un hash falso se rechaza (R11) | `tests/sha256_bordes.rs` |
 
-Los dos manifiestos ya escritos —`providers/dsh.toml` y `providers/abacus.toml`— son el
-banco de pruebas de esta lista. Que abacus necesite **cero** `[[runtime_files]]` mientras
-dsh necesita dos es la comprobación de que el campo es genérico y no dsh con otro nombre.
+Los puntos **8 y 9 no estaban en la lista original**: salieron de revisar una delegación, y
+los dos son doctrina del propio proyecto que el esquema incumplía. El 8 es el que más
+importa —un manifiesto no puede ser más laxo que un encargo, y `TaskSpecDraft` lleva
+`deny_unknown_fields` desde la Fase 1—: sin él, escribir `version_pinn` en vez de
+`version_pin` dejaba el pin sin efecto y R11 sin red, en silencio.
+
+El punto 10 tampoco estaba, y guarda algo que la lista original no anticipaba: que el hash
+lo calcule un crate o cien líneas propias es indiferente para la prueba, porque comprueba
+desde fuera. Se escribió contra una implementación artesanal y sobrevivió intacta a
+sustituirla por `sha2`.
+
+Los dos manifiestos —`providers/dsh.toml` y `providers/abacus.toml`— son el banco de
+pruebas de esta lista. Que abacus necesite **cero** `[[runtime_files]]` mientras dsh
+necesita dos es la comprobación de que el campo es genérico y no dsh con otro nombre.
+
+---
+
+## §7 Integración con dsh: una delegación, un hilo navegable
+
+Objetivo del Arquitecto: que cada delegación quede en **un solo chat**, y que desde
+`dsh web` se vea qué se hizo y su trayectoria. Lo que sigue está medido sobre dsh
+`0.1.1-rc.2`, y una de las tres respuestas es un «no» que conviene decir antes de diseñar
+sobre una ilusión.
+
+### 1. La visibilidad ya funciona, y no hace falta nada
+
+La interfaz descubre las sesiones **escaneando el directorio de persistencia**, no el
+registro de workspaces: *«the registry calls `SessionPersistence.list()`»*
+(`dsh-workspace/README.md:21`). Una delegación headless **ya aparece** en `dsh web` con su
+trayectoria completa.
+
+Lo que aporta `workspace.json` es sólo **agrupación**: una sesión cuya ruta no está
+registrada como workspace aparece sin grupo. batuta no necesita escribir ahí —y no debería:
+ese fichero lo posee `dsh-workspace`.
+
+### 2. «Un solo chat» no es alcanzable, y por qué
+
+`dsh-headless/lib/index.js:71` crea la sesión así:
+
+```javascript
+sessionId: SessionId(`session-${randomUUID()}`),
+```
+
+**Cada corrida es una sesión nueva.** No hay bandera, ni campo de configuración de la fila
+`headless-runner`, ni servicio expuesto para continuar una existente. Lo más parecido es
+`ctx.sessions.fork()`, que registra linaje y hereda `delegationDepth`
+(`dsh-session/README.md:17`), pero **headless no lo expone**.
+
+Diseñar suponiendo lo contrario habría costado un sprint. Se dice aquí para que no se
+intente.
+
+### 3. Lo que sí da el efecto que se busca: el worktree es la identidad
+
+`projectKey(cwd)` (`dsh-session-persistence-jsonl/lib/index.js:106`) es **determinista**:
+el mismo `cwd` produce siempre el mismo directorio de proyecto. De ahí sale una regla de
+batuta que antes era una comodidad y ahora es un requisito:
+
+> **El worktree de un encargo es estable durante todo el encargo, reintentos incluidos.**
+
+Con eso, un encargo = un worktree = **un grupo en la interfaz**, con una sesión por intento,
+juntas y en orden. Y son a lo sumo tres, porque `MAX_REPAIRS = 2`: dos fallos seguidos
+reencaminan el trabajo en vez de repararlo otra vez. Lo que se pierde frente a «un solo
+chat» es un tabique entre intentos, no la trazabilidad.
+
+Aviso de la propia documentación: la normalización del `cwd` es *«intentionally lossy»*
+(`dsh-session-persistence-jsonl/README.md:19`), así que dos rutas muy largas pueden
+colisionar en el mismo directorio. Los worktrees de batuta deben tener rutas cortas y
+distinguibles cerca del final.
+
+### 4. El título de la interfaz sale del encargo
+
+`dsh-session-title-first-prompt-llm` *«summarizes the first eligible human message through
+`ctx.llm`»*. El título que el Arquitecto verá en la lista **lo decide la primera línea del
+encargo**, resumida por el modelo. Es la única palanca que hay sobre esa etiqueta, y es
+gratis:
+
+> Todo encargo empieza por una línea identificadora:
+> `ENCARGO <id> · <crate o área> · intento <n>/<max>`
+
+Es un resumen, no una copia literal, así que el título será *reconocible*, no exacto.
+
+Coste que conviene saber: **cada sesión gasta una llamada de modelo extra** para titularse,
+y por defecto hereda la ruta del encargo. Se puede enrutar aparte fijando `provider` y
+`model` en la fila del titulador, si algún día el gasto importa.
+
+### 5. El índice es el recibo, no dsh
+
+`SessionHeader` es inmutable y no admite metadatos propios: sus campos son
+`version`, `id`, `createdAt`, `cwd?`, `parentSession?`, `seedLength?`, `origin?` y
+`delegationDepth?` (`dsh-session-persistence/README.md:63`). `parentSession` y `seedLength`
+sólo los escribe `fork()`, que headless no expone.
+
+Conclusión, y es una decisión de diseño, no una carencia: **batuta no intenta enlazar los
+intentos dentro de dsh.** El recibo lleva, en orden, el id de sesión de cada intento y su
+veredicto. dsh enseña cada hilo; el recibo dice qué hilo fue qué. Es la misma división que
+en la procedencia: dsh registra el hecho, batuta lo lee y lo interpreta.
+
+### Lo que esto añade al manifiesto
+
+Nada. Ni un campo. Las tres consecuencias son reglas de `batuta-exec` —worktree estable,
+primera línea identificadora, ids de sesión en el recibo— y por eso viven en este documento
+y no en `providers/dsh.toml`. Un manifiesto que creciera para esto estaría describiendo a
+batuta en vez de al proveedor.

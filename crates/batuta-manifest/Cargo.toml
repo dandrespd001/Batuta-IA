@@ -10,6 +10,7 @@ license.workspace = true
 batuta-contract = { path = "../batuta-contract" }
 serde = { workspace = true, features = ["std"] }
 toml = { workspace = true }
+sha2 = { workspace = true }
 
 [lints]
 workspace = true
