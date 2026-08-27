@@ -1,0 +1,15 @@
+[package]
+name = "batuta-manifest"
+description = "Carga y valida manifiestos de proveedor. Un manifiesto irresoluble falla al cargar, no al ejecutar (R1)."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+batuta-contract = { path = "../batuta-contract" }
+serde = { workspace = true, features = ["std"] }
+toml = { workspace = true }
+
+[lints]
+workspace = true
