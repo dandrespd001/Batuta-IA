@@ -1,3 +1,4 @@
+// generado: deepseek-v4-flash - revisado: Arquitecto
 //! El error de carga. **Cada variante nombra el fichero, la línea y el campo.**
 //!
 //! R1 se paga aquí: `abacus_cli` estaba declarado en un registro y ausente del
@@ -11,7 +12,7 @@
 use std::fmt;
 use std::path::PathBuf;
 
-use batuta_contract::{IdentifierError, VocabularyError};
+use batuta_contract::{IdentifierError, SchemaVersionError, VocabularyError};
 
 /// Dónde ocurrió: fichero y línea, para que el mensaje sea accionable.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -31,6 +32,18 @@ pub enum ManifestError {
         file: PathBuf,
         /// Causa del sistema de ficheros.
         source: std::io::Error,
+    },
+    /// Versión de esquema que batuta no sabe leer.
+    ///
+    /// No es «TOML mal formado»: el fichero está bien y lo que no encaja es el
+    /// acuerdo sobre su forma. Decir una cosa por otra en el mensaje es
+    /// exactamente lo que R8 evita, y quien lo lea se pondría a buscar una coma
+    /// que no falta.
+    UnsupportedSchemaVersion {
+        /// Dónde.
+        at: SourceLocation,
+        /// El error del contrato, que ya enumera las versiones admitidas.
+        source: SchemaVersionError,
     },
     /// TOML mal formado.
     Syntax {
@@ -142,11 +155,149 @@ pub enum ManifestError {
     },
 }
 
+/// Una lista de valores separada por comas, para los mensajes que R8 exige.
+fn lista<T: fmt::Display>(f: &mut fmt::Formatter<'_>, valores: &[T]) -> fmt::Result {
+    for (indice, valor) in valores.iter().enumerate() {
+        if indice > 0 {
+            f.write_str(", ")?;
+        }
+        write!(f, "{valor}")?;
+    }
+    Ok(())
+}
+
+/// El `Display` es un `match` lineal, una variante por mensaje: partirlo en
+/// funciones no lo haría más legible y sí más difícil de contrastar contra las
+/// variantes.
+#[allow(clippy::too_many_lines)]
 impl fmt::Display for ManifestError {
-    fn fmt(&self, _f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        todo!(
-            "los mensajes los fija tests/carga.rs: nombran fichero, línea, campo y valores válidos"
-        )
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Read { file, source } => {
+                write!(f, "no se pudo leer {}: {source}", file.display())
+            }
+            Self::UnsupportedSchemaVersion { at, source } => {
+                write!(f, "{}:{}: {source}", at.file.display(), at.line)
+            }
+            Self::Syntax { at, message } => write!(
+                f,
+                "{}:{}: TOML inválido: {message}",
+                at.file.display(),
+                at.line
+            ),
+            Self::Vocabulary { at, field, source } => write!(
+                f,
+                "{}:{}: campo `{field}`: {source}",
+                at.file.display(),
+                at.line
+            ),
+            Self::Identifier { at, field, source } => write!(
+                f,
+                "{}:{}: campo `{field}`: {source}",
+                at.file.display(),
+                at.line
+            ),
+            Self::ExecutableNotFound { at, program, tried } => {
+                write!(
+                    f,
+                    "{}:{}: ejecutable `{}` no encontrado; probado: ",
+                    at.file.display(),
+                    at.line,
+                    program.display()
+                )?;
+                for (indice, ruta) in tried.iter().enumerate() {
+                    if indice > 0 {
+                        f.write_str(", ")?;
+                    }
+                    write!(f, "`{}`", ruta.display())?;
+                }
+                Ok(())
+            }
+            Self::DigestMismatch {
+                at,
+                expected,
+                found,
+            } => write!(
+                f,
+                "{}:{}: sha256 no coincide: se esperaba `{expected}` y se encontró `{found}`",
+                at.file.display(),
+                at.line
+            ),
+            Self::RuntimeFilePathAbsolute { at, path } => write!(
+                f,
+                "{}:{}: ruta absoluta en runtime_files: `{}`",
+                at.file.display(),
+                at.line,
+                path.display()
+            ),
+            Self::RuntimeFilePathEscapes { at, path } => write!(
+                f,
+                "{}:{}: ruta que escapa del directorio de corrida: `{}`",
+                at.file.display(),
+                at.line,
+                path.display()
+            ),
+            Self::DocumentShapeAmbiguous { at, path } => write!(
+                f,
+                "{}:{}: documento `{}` declara `entry` y `content` a la vez",
+                at.file.display(),
+                at.line,
+                path.display()
+            ),
+            Self::DocumentShapeMissing { at, path } => write!(
+                f,
+                "{}:{}: documento `{}` no declara ni `entry` ni `content`",
+                at.file.display(),
+                at.line,
+                path.display()
+            ),
+            Self::UnknownPlaceholder {
+                at,
+                field,
+                placeholder,
+                expected,
+            } => {
+                write!(
+                    f,
+                    "{}:{}: llave de sustitución desconocida `{{{placeholder}}}` en `{field}`; admitidas: ",
+                    at.file.display(),
+                    at.line
+                )?;
+                for (indice, admitida) in expected.iter().enumerate() {
+                    if indice > 0 {
+                        f.write_str(", ")?;
+                    }
+                    write!(f, "{{{admitida}}}")?;
+                }
+                Ok(())
+            }
+            Self::SubstitutionIncomplete {
+                at,
+                key,
+                vocabulary,
+                missing,
+            } => {
+                write!(
+                    f,
+                    "{}:{}: la sustitución `{key}` no cubre el vocabulario `{vocabulary}`; faltan: ",
+                    at.file.display(),
+                    at.line
+                )?;
+                lista(f, missing)
+            }
+            Self::NoModels { at } => write!(
+                f,
+                "{}:{}: el manifiesto no declara ningún `[[models]]`",
+                at.file.display(),
+                at.line
+            ),
+            Self::DuplicateModel { at, id } => write!(
+                f,
+                "{}:{}: modelo duplicado: `{id}`",
+                at.file.display(),
+                at.line
+            ),
+        }
     }
 }
 
@@ -155,6 +306,22 @@ impl std::error::Error for ManifestError {}
 impl ManifestError {
     /// Dónde ocurrió, si la variante lo sabe.
     pub fn location(&self) -> Option<&SourceLocation> {
-        todo!("cada variante salvo Read lleva su SourceLocation")
+        match self {
+            Self::Read { .. } => None,
+            Self::UnsupportedSchemaVersion { at, .. }
+            | Self::Syntax { at, .. }
+            | Self::Vocabulary { at, .. }
+            | Self::Identifier { at, .. }
+            | Self::ExecutableNotFound { at, .. }
+            | Self::DigestMismatch { at, .. }
+            | Self::RuntimeFilePathAbsolute { at, .. }
+            | Self::RuntimeFilePathEscapes { at, .. }
+            | Self::DocumentShapeAmbiguous { at, .. }
+            | Self::DocumentShapeMissing { at, .. }
+            | Self::UnknownPlaceholder { at, .. }
+            | Self::SubstitutionIncomplete { at, .. }
+            | Self::NoModels { at, .. }
+            | Self::DuplicateModel { at, .. } => Some(at),
+        }
     }
 }

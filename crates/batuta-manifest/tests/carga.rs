@@ -287,3 +287,40 @@ fn un_manifiesto_sin_modelos_no_carga() {
     let error = error_de(&roto);
     assert!(matches!(error, ManifestError::NoModels { .. }), "{error:?}");
 }
+
+/// La doctrina del propio proyecto, aplicada al manifiesto.
+///
+/// `TaskSpecDraft` lleva `deny_unknown_fields` a proposito: convierte el acuerdo
+/// sobre los campos en un fallo de carga en vez de un campo ignorado en
+/// silencio. Un manifiesto no puede ser mas laxo que un encargo: `version_pinn`
+/// en vez de `version_pin` dejaria el pin sin efecto y R11 sin red, sin que
+/// nadie se entere hasta que el binario cambie por debajo.
+#[test]
+fn un_campo_desconocido_falla_al_cargar_y_lo_nombra() {
+    let roto = base().replace(
+        "version_pin   = \"1.0\"",
+        "version_pin   = \"1.0\"\nversion_pinn  = \"1.0\"",
+    );
+    let error = error_de(&roto);
+    let mensaje = error.to_string();
+    assert!(mensaje.contains("version_pinn"), "{mensaje}");
+}
+
+/// Una version de esquema que batuta no sabe leer no es "TOML mal formado".
+///
+/// Mapearla a `Syntax` decia una cosa por otra a quien leyera el mensaje, que es
+/// justo lo que R8 y R1 quieren evitar: el error tiene que nombrar el problema
+/// real y lo que se admitia.
+#[test]
+fn una_version_de_esquema_no_soportada_tiene_su_propio_error() {
+    let roto = base().replace("schema_version = 1", "schema_version = 999");
+    let error = error_de(&roto);
+
+    assert!(
+        matches!(error, ManifestError::UnsupportedSchemaVersion { .. }),
+        "{error:?}"
+    );
+    let mensaje = error.to_string();
+    assert!(mensaje.contains("999"), "{mensaje}");
+    assert!(error.location().is_some(), "tiene que decir donde");
+}

@@ -12,6 +12,7 @@ license = "MIT OR Apache-2.0"
 serde = { version = "1.0.229", default-features = false, features = ["derive", "alloc"] }
 serde_json = "1.0"
 toml = "0.9"
+sha2 = "0.10"
 
 # `cargo clippy --workspace -- -D warnings` es gate permanente (§7 del brief),
 # asi que todo lo que aparezca aqui es, en la practica, error de compilacion.
