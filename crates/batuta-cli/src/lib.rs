@@ -20,5 +20,5 @@ pub use declaracion::{
 };
 pub use eleccion::{disable, effort, enable};
 pub use error::CliError;
-pub use panel::{Fila, filas, tabla};
+pub use panel::{Fila, escribir_html, filas, tabla, tabla_html};
 pub use paths::Layout;

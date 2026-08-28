@@ -91,26 +91,33 @@ fn la_ayuda_no_promete_ninguna_bandera_que_el_parseo_no_admita() {
         assert_eq!(parse(orden).expect("la ayuda se pide así"), Command::Help);
     }
 
-    for bandera in ["--provider", "--model"] {
+    for bandera in ["--provider", "--model", "--html"] {
         assert!(USAGE.contains(bandera), "la ayuda omite {bandera}");
     }
     assert!(USAGE.contains("canary"), "la ayuda omite la única orden");
 
     // Toda bandera larga que la ayuda nombre tiene que ser admitida por el
     // parseo. Es la comprobación que impide que la ayuda envejezca sola.
+    //
+    // No todas las banderas son de la misma orden (`--model` es de `canary`,
+    // `--html` es de `panel`), así que se prueban las dos formas —con valor y
+    // sin él— contra las dos órdenes, y basta con que una de las cuatro
+    // valga: hay banderas que llevan valor y hay interruptores que no, y la
+    // ayuda nombra banderas de ambas órdenes.
     for palabra in USAGE.split_whitespace() {
         let bandera = palabra.trim_matches(|c: char| !c.is_ascii_alphanumeric() && c != '-');
         if !bandera.starts_with("--") || bandera == "--help" {
             continue;
         }
-        // Se prueban las dos formas —con valor y sin él— y basta con que una
-        // valga: hay banderas que llevan valor (`--model`) y hay interruptores
-        // que no (`--all`), y la ayuda nombra las dos.
-        let con_valor = parse(&argumentos(&["canary", "--provider", "eco", bandera, "x"]));
-        let sin_valor = parse(&argumentos(&["canary", "--provider", "eco", bandera]));
+        let intentos = [
+            parse(&argumentos(&["canary", "--provider", "eco", bandera, "x"])),
+            parse(&argumentos(&["canary", "--provider", "eco", bandera])),
+            parse(&argumentos(&["panel", bandera, "x"])),
+            parse(&argumentos(&["panel", bandera])),
+        ];
         assert!(
-            con_valor.is_ok() || sin_valor.is_ok(),
-            "la ayuda nombra {bandera} y el parseo la rechaza de las dos formas"
+            intentos.into_iter().any(|intento| intento.is_ok()),
+            "la ayuda nombra {bandera} y el parseo la rechaza en las cuatro formas probadas"
         );
     }
 }
@@ -160,7 +167,13 @@ fn pedir_todos_y_uno_a_la_vez_no_se_resuelve_en_silencio() {
 #[test]
 fn panel_sin_bandera_no_filtra() {
     let orden = parse(&argumentos(&["panel"])).expect("orden correcta");
-    assert_eq!(orden, Command::Panel { provider: None });
+    assert_eq!(
+        orden,
+        Command::Panel {
+            provider: None,
+            html: None,
+        }
+    );
 }
 
 /// `--provider` filtra el panel a un solo proveedor.
@@ -171,16 +184,73 @@ fn panel_con_provider_filtra() {
         orden,
         Command::Panel {
             provider: Some("dsh".to_string()),
+            html: None,
         }
     );
 }
 
-/// Una bandera que `panel` no admite se rechaza nombrando lo que sí (R8).
+/// T7 (§2/§3 de `docs/FASE5_PANEL.md`) — `--html <ruta>` es una bandera con
+/// valor, no un interruptor: guarda la ruta tal cual, sin validarla ni
+/// interpretarla en el parseo (el mismo trato que `model_ref: String` en
+/// `Enable`/`Disable`).
+#[test]
+fn panel_con_html_guarda_la_ruta() {
+    let orden =
+        parse(&argumentos(&["panel", "--html", "/tmp/panel.html"])).expect("orden correcta");
+    assert_eq!(
+        orden,
+        Command::Panel {
+            provider: None,
+            html: Some("/tmp/panel.html".to_string()),
+        }
+    );
+}
+
+/// `--html` sin su valor es un error, igual que `--provider` sin el suyo.
+#[test]
+fn panel_con_html_sin_valor_lo_dice() {
+    let error = parse(&argumentos(&["panel", "--html"])).expect_err("`--html` sin valor");
+    assert!(error.to_string().contains("--html"), "{error}");
+}
+
+/// `--provider` y `--html` se combinan, en cualquiera de los dos órdenes.
+#[test]
+fn panel_con_provider_y_html_combinados() {
+    let esperado = Command::Panel {
+        provider: Some("dsh".to_string()),
+        html: Some("/tmp/panel.html".to_string()),
+    };
+
+    let orden = parse(&argumentos(&[
+        "panel",
+        "--provider",
+        "dsh",
+        "--html",
+        "/tmp/panel.html",
+    ]))
+    .expect("orden correcta: --provider antes de --html");
+    assert_eq!(orden, esperado);
+
+    let orden_invertida = parse(&argumentos(&[
+        "panel",
+        "--html",
+        "/tmp/panel.html",
+        "--provider",
+        "dsh",
+    ]))
+    .expect("orden correcta: --html antes de --provider");
+    assert_eq!(orden_invertida, esperado);
+}
+
+/// Una bandera que `panel` no admite se rechaza nombrando lo que sí (R8),
+/// `--html` incluido ahora que existe.
 #[test]
 fn panel_con_una_bandera_ajena_la_rechaza() {
     let error =
         parse(&argumentos(&["panel", "--model", "algo"])).expect_err("--model no es de panel");
-    assert!(error.to_string().contains("--provider"), "{error}");
+    let mensaje = error.to_string();
+    assert!(mensaje.contains("--provider"), "{mensaje}");
+    assert!(mensaje.contains("--html"), "{mensaje}");
 }
 
 /// T5 — `enable`/`disable` toman `<proveedor>/<modelo>` posicional, sin

@@ -14,8 +14,8 @@ use std::path::PathBuf;
 use std::process::ExitCode;
 
 use batuta_cli::{
-    CanaryOutcome, Command, Layout, USAGE, canary, canary_all, disable, effort, enable, filas,
-    nuevo_modelo, nuevo_proveedor, parse, quitar_modelo_de, tabla,
+    CanaryOutcome, Command, Layout, USAGE, canary, canary_all, disable, effort, enable,
+    escribir_html, filas, nuevo_modelo, nuevo_proveedor, parse, quitar_modelo_de, tabla,
 };
 
 fn main() -> ExitCode {
@@ -31,7 +31,9 @@ fn main() -> ExitCode {
             model,
             all,
         }) => ejecutar_canario(&provider, model.as_deref(), all),
-        Ok(Command::Panel { provider }) => ejecutar_panel(provider.as_deref()),
+        Ok(Command::Panel { provider, html }) => {
+            ejecutar_panel(provider.as_deref(), html.as_deref())
+        }
         Ok(Command::Enable { model_ref }) => {
             ejecutar_eleccion("enable", &model_ref, |p, l| enable(p, l, &model_ref))
         }
@@ -99,9 +101,18 @@ fn ejecutar_canario(proveedor: &str, modelo: Option<&str>, todos: bool) -> ExitC
     }
 }
 
-/// `batuta panel`: imprime la tabla y sale con 0, salvo que no se pudiera
-/// siquiera construirla.
-fn ejecutar_panel(proveedor: Option<&str>) -> ExitCode {
+/// `batuta panel`: imprime la tabla por stdout, o la escribe como página
+/// HTML si se pide `--html <ruta>` (§2/§3 de `docs/FASE5_PANEL.md`).
+///
+/// `filas()` se llama una sola vez, se pida texto plano o HTML: `tabla` y
+/// `tabla_html` (dentro de [`escribir_html`]) tienen que ver exactamente la
+/// misma foto, nunca dos lecturas separadas —T7.
+///
+/// Con `--html`, sólo se confirma la ruta (paralelo a `nuevo-proveedor`, que
+/// tampoco vuelca el contenido del fichero que acaba de escribir): la tabla
+/// ya quedó en el fichero, repetirla por stdout no añade nada que la ruta
+/// impresa no diga ya.
+fn ejecutar_panel(proveedor: Option<&str>, html: Option<&str>) -> ExitCode {
     let (disposicion, proveedores) = match entorno() {
         Ok(v) => v,
         Err(codigo) => return codigo,
@@ -109,8 +120,22 @@ fn ejecutar_panel(proveedor: Option<&str>) -> ExitCode {
 
     match filas(&proveedores, &disposicion, proveedor) {
         Ok(filas) => {
-            print!("{}", tabla(&filas));
-            ExitCode::SUCCESS
+            if let Some(ruta) = html {
+                let ruta = std::path::Path::new(ruta);
+                match escribir_html(ruta, &filas) {
+                    Ok(()) => {
+                        println!("panel --html → {}", ruta.display());
+                        ExitCode::SUCCESS
+                    }
+                    Err(e) => {
+                        eprintln!("batuta: {e}");
+                        ExitCode::from(2)
+                    }
+                }
+            } else {
+                print!("{}", tabla(&filas));
+                ExitCode::SUCCESS
+            }
         }
         Err(e) => {
             eprintln!("batuta: {e}");

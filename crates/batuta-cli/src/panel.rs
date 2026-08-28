@@ -278,3 +278,117 @@ pub fn tabla(filas: &[Fila]) -> String {
 
     salida
 }
+
+/// Escapa `&`, `<`, `>` y `"` para insertar texto libre del manifiesto
+/// (`provider`, `model`, el alias de `warning`) dentro de HTML sin romper la
+/// estructura de la página. El orden importa: `&` va primero, porque un `<`
+/// ya escapado a `&lt;` volvería a escaparse a `&amp;lt;` si `&` se
+/// procesara después.
+fn escapar_html(s: &str) -> String {
+    s.replace('&', "&amp;")
+        .replace('<', "&lt;")
+        .replace('>', "&gt;")
+        .replace('"', "&quot;")
+}
+
+/// La frase de sólo lectura, visible en el cuerpo de la página (T7): no es un
+/// adorno de un comentario HTML, es el hecho central que la página tiene que
+/// comunicar —es una fotografía de un instante, no un panel de control.
+const AVISO_SOLO_LECTURA: &str = "Esta página es de sólo lectura: es una fotografía de este instante \
+     y no aplica ningún cambio. Para activar, desactivar o cambiar el \
+     esfuerzo de un modelo, usa <code>batuta enable</code>, \
+     <code>batuta disable</code> o <code>batuta effort</code> desde la \
+     línea de órdenes.";
+
+/// La misma tabla que [`tabla`], como página HTML autocontenida: sin red,
+/// sin CDN, sin fuente externa (T7, `docs/FASE5_PANEL.md`).
+///
+/// Recibe las mismas `filas` que [`tabla`] — quien llama debe construirlas
+/// con una única invocación de [`filas()`] y pasar esa misma variable a las
+/// dos funciones, nunca dos llamadas separadas. `Fila.canary` viene de
+/// [`hace`], prosa relativa a «ahora» (`hace 2 min`, `hace 3 h`): dos
+/// llamadas a `filas()` en instantes distintos podrían divergir en el borde
+/// de un minuto, y entonces la tabla de texto y la de HTML contarían
+/// versiones distintas de la misma corrida. Es la garantía de «la misma
+/// verdad» que el checklist de T7 pide.
+pub fn tabla_html(filas: &[Fila]) -> String {
+    let aviso = AVISO_SOLO_LECTURA;
+    let mut cuerpo = String::new();
+    for fila in filas {
+        let esfuerzo = fila.effort.as_deref().unwrap_or("—");
+        let activo = if fila.enabled { "sí" } else { "no" };
+        let enrutable = if fila.routable { "sí" } else { "no" };
+        let confirmado = match fila.confirmed {
+            Some(true) => "confirmado",
+            Some(false) => "sin confirmar",
+            None => "—",
+        };
+        let alias = fila
+            .warning
+            .as_deref()
+            .map_or_else(|| "—".to_string(), |alias| format!("⚠ {alias}"));
+
+        let _ = writeln!(
+            cuerpo,
+            "<tr><td>{}</td><td>{}</td><td>{}</td><td>{}</td><td>{}</td><td>{}</td><td>{}</td><td>{}</td></tr>",
+            escapar_html(&fila.provider),
+            escapar_html(&fila.model),
+            escapar_html(esfuerzo),
+            activo,
+            enrutable,
+            escapar_html(&fila.canary),
+            confirmado,
+            escapar_html(&alias),
+        );
+    }
+
+    format!(
+        "<!doctype html>\n\
+         <html lang=\"es\">\n\
+         <head>\n\
+         <meta charset=\"utf-8\">\n\
+         <title>batuta panel</title>\n\
+         <style>\n\
+         body {{ font-family: monospace; margin: 2rem; }}\n\
+         table {{ border-collapse: collapse; margin-top: 1rem; }}\n\
+         th, td {{ border: 1px solid #999; padding: 0.3rem 0.6rem; text-align: left; }}\n\
+         th {{ background: #eee; }}\n\
+         p.aviso {{ font-weight: bold; }}\n\
+         </style>\n\
+         </head>\n\
+         <body>\n\
+         <h1>batuta panel</h1>\n\
+         <p class=\"aviso\">{aviso}</p>\n\
+         <table>\n\
+         <thead>\n\
+         <tr><th>PROVEEDOR</th><th>MODELO</th><th>ESFUERZO</th><th>ACTIVO</th>\
+         <th>ENRUTABLE</th><th>CANARIO</th><th>CONFIRMADO</th><th>ALIAS</th></tr>\n\
+         </thead>\n\
+         <tbody>\n\
+         {cuerpo}\
+         </tbody>\n\
+         </table>\n\
+         </body>\n\
+         </html>\n"
+    )
+}
+
+/// Escribe [`tabla_html`] de `filas` en `ruta` (§2/§3 de
+/// `docs/FASE5_PANEL.md`: `batuta panel --html <ruta>`).
+///
+/// Vive junto a `tabla_html`, no en `main.rs`, con el mismo reparto que ya
+/// usa [`crate::declaracion::nuevo_proveedor`]: quien construye el contenido
+/// también hace el `fs::write` y traduce el error de disco a
+/// [`CliError::Io`], para que `main.rs` sólo tenga que decidir qué imprimir
+/// según el resultado.
+///
+/// # Errors
+///
+/// [`CliError::Io`] si no se pudo escribir en `ruta` (directorio inexistente,
+/// permisos, disco lleno...).
+pub fn escribir_html(ruta: &Path, filas: &[Fila]) -> Result<(), CliError> {
+    std::fs::write(ruta, tabla_html(filas)).map_err(|source| CliError::Io {
+        path: ruta.to_path_buf(),
+        source,
+    })
+}

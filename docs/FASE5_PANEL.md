@@ -217,10 +217,21 @@ con criterio binario, y verificación de los comandos en esta máquina antes de 
       un error dedicado (`CannotRemoveLastModel`) que sugiere `disable`, comprobado ANTES de
       tocar el texto — no lo detecta un `NoModels` de después
 
-### T7 · `batuta panel --html`
-- [ ] Página autocontenida: sin red, sin CDN, sin fuentes externas
-- [ ] Los mismos datos que la tabla, y **la misma verdad**: un test compara las dos salidas
-- [ ] Sólo lectura, y lo dice en la propia página
+### T7 · `batuta panel --html` — **hecho** (pendiente de commit)
+- [x] Página autocontenida: sin red, sin CDN, sin fuentes externas
+      (CSS embebido en un `<style>` inline, cero `<link>`/`src=`/`@import`/`http`;
+      test `tabla_html_es_autocontenida_sin_red_ni_cdn`)
+- [x] Los mismos datos que la tabla, y **la misma verdad**: un test compara las dos salidas
+      (`tabla_html_dice_lo_mismo_que_tabla_para_las_mismas_filas`: una sola llamada a
+      `filas()`, `tabla` y `tabla_html` sobre la misma variable, comparadas fila a fila
+      —no sólo "el documento la contiene en algún sitio"—; mutación verificada a mano)
+- [x] Sólo lectura, y lo dice en la propia página
+      (frase literal en el `<body>`, no en un comentario; test
+      `tabla_html_dice_que_es_de_solo_lectura`)
+- [x] *(no estaba en la lista, lo pedía el diseño)* escapado HTML de todo campo de texto
+      libre del manifiesto (`provider`, `model`, el alias de `warning`) antes de
+      interpolarlo: `escapar_html`, con test de un valor con `<`/`&` que no rompe la
+      página y que confirma el orden exacto del escapado (`&` antes que `< > "`)
 
 ---
 

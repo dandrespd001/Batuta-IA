@@ -23,6 +23,13 @@ pub enum Command {
     Panel {
         /// Si se pide, sólo enseña este proveedor.
         provider: Option<String>,
+        /// Si se pide, la ruta donde escribir la tabla como página HTML
+        /// autocontenida, en vez de imprimir la tabla de texto por stdout
+        /// (§2/§3 de `docs/FASE5_PANEL.md`: `batuta panel --html <ruta>`).
+        /// Todavía sin interpretar como `Path`: eso es trabajo de quien
+        /// ejecuta la orden, no del parseo — el mismo trato que
+        /// `model_ref: String` en `Enable`/`Disable`.
+        html: Option<String>,
     },
     /// Activa un modelo en la política.
     Enable {
@@ -86,8 +93,9 @@ pub const CANARY_FLAGS: &[&str] = &["--provider", "--model"];
 /// Los interruptores de `canary`: van solos y no llevan valor.
 pub const CANARY_SWITCHES: &[&str] = &["--all"];
 
-/// Las banderas de `panel` que llevan valor.
-pub const PANEL_FLAGS: &[&str] = &["--provider"];
+/// Las banderas de `panel` que llevan valor. `--html` lleva una ruta (§2/§3
+/// de `docs/FASE5_PANEL.md`), no es un interruptor.
+pub const PANEL_FLAGS: &[&str] = &["--provider", "--html"];
 
 /// La ayuda.
 ///
@@ -99,7 +107,7 @@ batuta — orquestador de delegación
 USO
     batuta canary --provider <id> [--model <id>]
     batuta canary --provider <id> --all
-    batuta panel [--provider <id>]
+    batuta panel [--html <ruta>] [--provider <id>]
     batuta enable  <proveedor>/<modelo>
     batuta disable <proveedor>/<modelo>
     batuta effort  <proveedor>/<modelo> <nivel>
@@ -141,6 +149,9 @@ BANDERAS DE canary
 
 BANDERAS DE panel
     --provider <id>   Enseña sólo este proveedor. Sin ella, todos.
+    --html <ruta>     Escribe la tabla como página HTML autocontenida en esa
+                      ruta, en vez de imprimirla por stdout: sin red, sin
+                      CDN, de sólo lectura. Se combina con --provider.
 
 <proveedor>/<modelo>
     El identificador de batuta, tal como aparece en la primera columna de
@@ -256,9 +267,14 @@ fn parsear_canary(args: &[String]) -> Result<Command, CliError> {
 
 /// Los argumentos de `panel`, después de la orden.
 ///
-/// Más simple que `canary`: una sola bandera, opcional, y ningún interruptor.
+/// Dos banderas con valor (`--provider`, `--html`), en cualquier orden: el
+/// mismo patrón que `parsear_canary` ya usa para `--provider`/`--model`.
+/// Ninguna de las dos se valida ni se interpreta aquí —`--html` guarda la
+/// ruta tal cual, como texto; convertirla a `Path` es trabajo de quien
+/// ejecuta la orden.
 fn parsear_panel(args: &[String]) -> Result<Command, CliError> {
     let mut provider: Option<String> = None;
+    let mut html: Option<String> = None;
 
     let mut indice = 0;
     while indice < args.len() {
@@ -274,7 +290,11 @@ fn parsear_panel(args: &[String]) -> Result<Command, CliError> {
                     flag: argumento.clone(),
                 });
             }
-            provider = Some(valor.clone());
+            if argumento == "--provider" {
+                provider = Some(valor.clone());
+            } else {
+                html = Some(valor.clone());
+            }
             indice += 2;
         } else {
             return Err(CliError::UnknownFlag {
@@ -284,7 +304,7 @@ fn parsear_panel(args: &[String]) -> Result<Command, CliError> {
         }
     }
 
-    Ok(Command::Panel { provider })
+    Ok(Command::Panel { provider, html })
 }
 
 /// Un único posicional: `<proveedor>/<modelo>`, sin partir todavía. Partirlo y
