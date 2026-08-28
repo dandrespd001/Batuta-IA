@@ -49,8 +49,18 @@ argv = ["--print", "--model", "{route_model}", "--output-format", "text",
 workdir = "worktree"
 prompt  = { via = "argv" }
 
+# `USER` esta aqui por MEDICION, no por costumbre. Sin ella, `abacusai` falla en
+# 443 ms con «Unsupported state or unable to authenticate data» —aunque
+# `abacusai auth status` con el entorno completo diga que la sesion es valida—,
+# porque deriva de `$USER` la clave con que descifra su almacen de credenciales.
+# Se bisecaron ocho variables (USER, LOGNAME, SHELL, XDG_RUNTIME_DIR,
+# DBUS_SESSION_BUS_ADDRESS, XDG_SESSION_TYPE, DISPLAY) y solo `USER` lo arregla.
+#
+# R5 no dice «pasa poco»: dice que nada se hereda sin nombrarlo. Una variable
+# que hace falta y esta nombrada cumple la regla; una que hace falta y se
+# adivina, no.
 [env]
-allow = ["HOME", "PATH", "TERM", "LANG"]
+allow = ["HOME", "PATH", "TERM", "LANG", "USER"]
 set   = { ABACUSAI_NO_TELEMETRY = "1" }
 
 [response]
