@@ -1,0 +1,47 @@
+# Proveedor de prueba con MAS DE UN MODELO.
+#
+# Existe para una sola cosa: que `--model` ausente sea un error que ENUMERA lo
+# que se podia haber pedido, y no un silencio que elige por su cuenta. Elegir en
+# silencio es como se pidio un modelo tres veces y corrio otro las tres.
+schema_version = 1
+id             = "dos-modelos"
+kind           = "cli"
+
+[executable]
+program       = "/bin/echo"
+version_pin   = "coreutils"
+version_probe = ["--version"]
+resolve       = ["/bin/echo"]
+
+[invoke]
+argv    = ["{prompt}"]
+workdir = "worktree"
+prompt  = { via = "argv" }
+
+[env]
+allow = ["HOME", "PATH"]
+
+[auth]
+method = "oauth_cli"
+
+[response]
+parser = "plain_text"
+
+[provenance]
+source = "declared"
+
+[[models]]
+id              = "eco-rapido"
+route_model     = "eco-rapido"
+roles           = ["implementation"]
+max_sensitivity = "internal"
+
+[[models]]
+id              = "eco-lento"
+route_model     = "eco-lento"
+roles           = ["implementation"]
+max_sensitivity = "internal"
+
+[canary]
+prompt = "Responde exactamente con: {token}"
+expect = "token_echo"

@@ -1,0 +1,28 @@
+[package]
+name = "batuta-cli"
+description = "La línea de órdenes de batuta: por donde se pide un canario y por donde sale su recibo."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "batuta"
+path = "src/main.rs"
+
+[lib]
+name = "batuta_cli"
+path = "src/lib.rs"
+
+# Sin `clap`. Una sola orden no justifica la dependencia (R2: nada se declara,
+# se demuestra), y la que hay se parsea en cuarenta líneas. Se añadirá cuando
+# escribirlo a mano sea peor que depender de ello, y no antes.
+[dependencies]
+batuta-contract = { path = "../batuta-contract" }
+batuta-manifest = { path = "../batuta-manifest" }
+batuta-receipt = { path = "../batuta-receipt" }
+batuta-exec = { path = "../batuta-exec" }
+serde_json = { workspace = true }
+
+[lints]
+workspace = true
