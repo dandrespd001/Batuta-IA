@@ -174,13 +174,18 @@ con criterio binario, y verificación de los comandos en esta máquina antes de 
 - [x] *(no estaba en la lista)* `Receipt` gana `Deserialize` (antes sólo `Serialize`): es el único sitio
       donde deserializar un recibo está permitido, porque lee lo que `Receipt::seal` ya selló
 
-### T4 · `batuta panel`: la tabla
-- [ ] Une las tres capas: declaración, evidencia y elección
-- [ ] Columna de canario con **fecha relativa**, y `ninguno` cuando no lo hay
-- [ ] Marca `⚠` cuando `observed_as` difiere de `route_model`
-- [ ] `--provider <id>` filtra
-- [ ] Test: un modelo activo **sin recibo** sale enseñado y marcado como no enrutable
-- [ ] Sin dependencia nueva: el ancho de columna se calcula a mano
+### T4 · `batuta panel`: la tabla — **hecho** (`700cbf3`)
+- [x] Une las tres capas: declaración, evidencia y elección
+- [x] Columna de canario con **fecha relativa**, y `ninguno` cuando no lo hay
+      (`hace N min/h/d`; `LatestGreen::Fresh` ganó `sealed_at` para poder calcularla)
+- [x] Marca `⚠` cuando `observed_as` difiere de `route_model`
+      (literal: cualquier alias declarado, no sólo los que resuelven a una variante distinta —
+      acotarlo más pediría un normalizador nuevo, que T1 ya estableció que hay que evitar)
+- [x] `--provider <id>` filtra (y uno inexistente enumera los que hay, R8, igual que `canary`)
+- [x] Test: un modelo activo **sin recibo** sale enseñado y marcado como no enrutable
+      (`ENRUTABLE` es su propia columna, separada de `ACTIVO`, tal como pedía §1; mutación
+      verificada a mano para confirmar que el test detecta una regresión real)
+- [x] Sin dependencia nueva: el ancho de columna se calcula a mano (`Anchos::de`)
 
 ### T5 · `enable`, `disable`, `effort`
 - [ ] Cada una lee la política, la cambia y la guarda
