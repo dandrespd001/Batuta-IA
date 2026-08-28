@@ -187,11 +187,18 @@ con criterio binario, y verificación de los comandos en esta máquina antes de 
       verificada a mano para confirmar que el test detecta una regresión real)
 - [x] Sin dependencia nueva: el ancho de columna se calcula a mano (`Anchos::de`)
 
-### T5 · `enable`, `disable`, `effort`
-- [ ] Cada una lee la política, la cambia y la guarda
-- [ ] `<proveedor>/<modelo>` inexistente ⇒ error que **enumera los que hay** (R8)
-- [ ] `effort` a un proveedor sin mapa ⇒ error que lo dice, no un valor que se ignora
-- [ ] Test: `disable` no toca ni el manifiesto ni los recibos
+### T5 · `enable`, `disable`, `effort` — **hecho** (`a540835`)
+- [x] Cada una lee la política, la cambia y la guarda
+- [x] `<proveedor>/<modelo>` inexistente ⇒ error que **enumera los que hay** (R8)
+      (reutiliza `command::hallar`, el mismo helper que ya usaba `canary`)
+- [x] `effort` a un proveedor sin mapa ⇒ error que lo dice, no un valor que se ignora
+      (`Substitutions::declares_reasoning_effort` de T1, comprobado antes de escribir nada)
+- [x] Test: `disable` no toca ni el manifiesto ni los recibos (byte a byte; mutación
+      verificada a mano — la primera versión de la mutación apuntaba al manifiesto
+      equivocado y no probaba nada, corregida antes de confiar en el resultado)
+- [x] *(no estaba en la lista, lo encontró la prueba manual)* bug real: la primera
+      elección de una instalación nueva fallaba porque `~/.local/state/batuta/` no
+      existía todavía; arreglado igual que `canary` con `leases()`/`receipts()`
 
 ### T6 · `nuevo-proveedor`, `nuevo-modelo`, `quitar-modelo`
 - [ ] `nuevo-proveedor` escribe una plantilla **comentada** que carga tal cual salvo los huecos evidentes
