@@ -1,3 +1,4 @@
+// generado: deepseek-v4-flash - revisado: Arquitecto
 //! Por qué no se pudo admitir un encargo.
 
 use std::fmt;
@@ -42,8 +43,30 @@ pub enum LeaseError {
 }
 
 impl fmt::Display for LeaseError {
-    fn fmt(&self, _f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        todo!("los mensajes los fija tests/admision.rs; el de ocupado nombra al dueño")
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::AdmissionUnavailable {
+                space,
+                key,
+                held_by,
+            } => {
+                let task_id = &held_by.task_id;
+                let pid = held_by.owner.pid;
+                write!(
+                    f,
+                    "lease de {space} ocupado: la clave `{key}` la tiene el encargo `{task_id}` \
+                     (pid {pid})"
+                )
+            }
+            Self::Store { path, source } => write!(
+                f,
+                "no se pudo usar el almacén en `{}`: {source}",
+                path.display()
+            ),
+            Self::Corrupt { path, detail } => {
+                write!(f, "lease ilegible en `{}`: {detail}", path.display())
+            }
+        }
     }
 }
 
