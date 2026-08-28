@@ -217,7 +217,7 @@ con criterio binario, y verificación de los comandos en esta máquina antes de 
       un error dedicado (`CannotRemoveLastModel`) que sugiere `disable`, comprobado ANTES de
       tocar el texto — no lo detecta un `NoModels` de después
 
-### T7 · `batuta panel --html` — **hecho** (pendiente de commit)
+### T7 · `batuta panel --html` — **hecho** (`6180091`)
 - [x] Página autocontenida: sin red, sin CDN, sin fuentes externas
       (CSS embebido en un `<style>` inline, cero `<link>`/`src=`/`@import`/`http`;
       test `tabla_html_es_autocontenida_sin_red_ni_cdn`)
@@ -232,6 +232,9 @@ con criterio binario, y verificación de los comandos en esta máquina antes de 
       libre del manifiesto (`provider`, `model`, el alias de `warning`) antes de
       interpolarlo: `escapar_html`, con test de un valor con `<`/`&` que no rompe la
       página y que confirma el orden exacto del escapado (`&` antes que `< > "`)
+- [x] *(cierre de integración)* el binario real combina `--provider` y `--html <ruta>`,
+      escribe el fichero pedido y no vuelca el HTML por `stdout`; una mutación que ignoraba
+      `--html` hizo fallar el test `el_binario_panel_html_escribe_la_ruta_y_respeta_el_filtro`
 
 ---
 
