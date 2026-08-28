@@ -200,11 +200,22 @@ con criterio binario, y verificación de los comandos en esta máquina antes de 
       elección de una instalación nueva fallaba porque `~/.local/state/batuta/` no
       existía todavía; arreglado igual que `canary` con `leases()`/`receipts()`
 
-### T6 · `nuevo-proveedor`, `nuevo-modelo`, `quitar-modelo`
-- [ ] `nuevo-proveedor` escribe una plantilla **comentada** que carga tal cual salvo los huecos evidentes
-- [ ] `nuevo-modelo` **añade al final**; test: los comentarios previos sobreviven byte a byte
-- [ ] `quitar-modelo` **imprime lo que borró**; test: lo impreso se puede volver a pegar y el manifiesto carga igual
-- [ ] Ninguna de las tres reescribe el fichero entero
+### T6 · `nuevo-proveedor`, `nuevo-modelo`, `quitar-modelo` — **hecho** (pendiente de commit)
+- [x] `nuevo-proveedor` escribe una plantilla **comentada** que carga tal cual salvo los huecos evidentes
+      (`declaracion::plantilla_proveedor`; ejecutable de partida `/bin/echo` para que
+      `ProviderManifest::load` resuelva sin tocar nada, el hueco evidente es `route_model`)
+- [x] `nuevo-modelo` **añade al final**; test: los comentarios previos sobreviven byte a byte
+      (`anexar_modelo`: garantía por construcción, sólo `push`/`push_str`; test de mutación
+      verificado a mano — romper el prefijo lo detecta `anexar_modelo_preserva_el_texto_original_como_prefijo_exacto`)
+- [x] `quitar-modelo` **imprime lo que borró**; test: lo impreso se puede volver a pegar y el manifiesto carga igual
+      (`quitar_modelo` + `ejecutar_quitar_modelo` en `main.rs`; test de mutación verificado a
+      mano — tragar una línea de más tras el bloque lo detecta
+      `quitar_y_repegar_carga_con_el_mismo_conjunto_de_modelos`)
+- [x] Ninguna de las tres reescribe el fichero entero (edición de texto pura, nunca
+      deserializar-con-`toml`-y-reserializar)
+- [x] *(no estaba en la lista)* `quitar-modelo` sobre el único modelo de un proveedor falla con
+      un error dedicado (`CannotRemoveLastModel`) que sugiere `disable`, comprobado ANTES de
+      tocar el texto — no lo detecta un `NoModels` de después
 
 ### T7 · `batuta panel --html`
 - [ ] Página autocontenida: sin red, sin CDN, sin fuentes externas
