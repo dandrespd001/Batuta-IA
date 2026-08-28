@@ -65,6 +65,17 @@ pub enum ExecError {
         /// Quién lo tiene y por qué no se pudo admitir.
         source: batuta_lease::LeaseError,
     },
+    /// El token del canario no se pudo generar.
+    ///
+    /// Sale de `/dev/urandom`, que **no se lanza: se lee**. Sin variante propia
+    /// el fallo tenía que ir en `Spawn` con `/dev/urandom` de «programa», y el
+    /// mensaje decía «no se pudo lanzar el programa `/dev/urandom`», que es
+    /// falso. Un vocabulario incompleto no obliga a mentir: obliga a
+    /// completarlo.
+    TokenSource {
+        /// Causa.
+        source: std::io::Error,
+    },
     /// El proceso no se pudo lanzar.
     Spawn {
         /// El programa que se intentó.
@@ -99,6 +110,10 @@ impl fmt::Display for ExecError {
                 Ok(())
             }
             Self::Admission { source } => write!(f, "no se pudo admitir el encargo: {source}"),
+            Self::TokenSource { source } => write!(
+                f,
+                "no se pudo generar el token del canario leyendo `/dev/urandom`: {source}"
+            ),
             Self::MissingBuiltin { field, placeholder } => write!(
                 f,
                 "el manifiesto usa `{{{placeholder}}}` en `{field}` y este encargo no la trae; \
