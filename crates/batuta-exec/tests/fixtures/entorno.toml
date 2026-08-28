@@ -1,0 +1,43 @@
+# Proveedor de prueba: /usr/bin/env imprime el entorno que recibe.
+#
+# R5 no se comprueba leyendo la allowlist: se comprueba mirando qué le llegó al
+# hijo. `deny` gana sobre `allow` a propósito, porque hay variables que el
+# proveedor lee para decidir su propia contención.
+schema_version = 1
+id             = "entorno"
+kind           = "cli"
+
+[executable]
+program       = "/usr/bin/env"
+version_pin   = "coreutils"
+version_probe = ["--version"]
+resolve       = ["/usr/bin/env"]
+
+[invoke]
+argv    = []
+workdir = "worktree"
+prompt  = { via = "argv" }
+
+[env]
+allow = ["HOME", "BATUTA_TESTIGO", "BATUTA_DOBLE"]
+deny  = ["BATUTA_DOBLE"]
+set   = { BATUTA_FIJADA = "valor-fijado" }
+
+[auth]
+method = "oauth_cli"
+
+[response]
+parser = "plain_text"
+
+[provenance]
+source = "declared"
+
+[[models]]
+id              = "entorno-modelo"
+route_model     = "entorno"
+roles           = ["implementation"]
+max_sensitivity = "internal"
+
+[canary]
+prompt = "Responde exactamente con: {token}"
+expect = "token_echo"

@@ -7,8 +7,12 @@
 
 pub mod error;
 pub mod materialize;
+pub mod provenance;
+pub mod run;
 pub mod substitution;
 
 pub use error::ExecError;
 pub use materialize::materialize;
+pub use provenance::{parse_log, project_key, read_after, snapshot};
+pub use run::{RunOutcome, build_env, run};
 pub use substitution::{RunContext, resolve, resolve_argv};

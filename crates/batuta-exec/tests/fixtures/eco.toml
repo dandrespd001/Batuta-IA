@@ -1,0 +1,42 @@
+# Proveedor de prueba: /bin/echo devuelve su argumento.
+#
+# Con esto el canario completo se ejercita SIN RED: sustitución, materialización,
+# entorno, proceso, captura y sellado del recibo. Su valor real es de atribución:
+# cuando el canario contra dsh falle, este dirá si el fallo es del proveedor o de
+# batuta. Sin él, cada fallo obliga a adivinar de qué lado está.
+schema_version = 1
+id             = "eco"
+kind           = "cli"
+
+[executable]
+program       = "/bin/echo"
+version_pin   = "coreutils"
+version_probe = ["--version"]
+resolve       = ["/bin/echo"]
+
+[invoke]
+argv    = ["{prompt}"]
+workdir = "worktree"
+prompt  = { via = "argv" }
+
+[env]
+allow = ["HOME", "PATH"]
+
+[auth]
+method = "oauth_cli"
+
+[response]
+parser = "plain_text"
+
+[provenance]
+source = "declared"
+
+[[models]]
+id              = "eco-modelo"
+route_model     = "eco"
+roles           = ["implementation"]
+max_sensitivity = "internal"
+
+[canary]
+prompt = "Responde exactamente con: {token}"
+expect = "token_echo"
