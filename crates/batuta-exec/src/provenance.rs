@@ -236,3 +236,67 @@ fn buscar_texto(valor: &serde_json::Value, clave: &str) -> Option<String> {
         _ => None,
     }
 }
+
+/// Lee el modelo del `stderr` con el patrón que el manifiesto declara.
+///
+/// El patrón lleva `{model}` entre dos literales y lo que quede en medio es lo
+/// que la máquina anotó. Es tan observacional como leer un registro de sesión:
+/// **lo escribe el proveedor**, no batuta.
+///
+/// Medido: `abacusai` escribe `model: ZAI_GLM_5_3_FLASH | cwd: … |
+/// conversation: …`, así que con `pattern = "model: {model} |"` sale
+/// `ZAI_GLM_5_3_FLASH`. Nueve canarios salieron «sin confirmar» teniendo esa
+/// línea delante.
+///
+/// # Errors
+///
+/// El motivo por el que **no se pudo leer**, que el recibo convierte en rojo.
+/// No se rellena con lo pedido: «no lo encontré» y «no pasó nada» son cosas
+/// distintas, y confundirlas es cómo un recibo empieza a mentir.
+pub fn read_stderr(stderr: &str, pattern: &str) -> Result<ObservedProvenance, String> {
+    let Some((prefijo, sufijo)) = pattern.split_once("{model}") else {
+        return Err(format!("el patrón `{pattern}` no lleva `{{model}}`"));
+    };
+
+    let Some(desde) = stderr.find(prefijo) else {
+        return Err(format!(
+            "el stderr no contiene `{prefijo}`, que es donde el patrón esperaba el modelo"
+        ));
+    };
+    let resto = &stderr[desde + prefijo.len()..];
+
+    // Un sufijo vacío significa «hasta el final de la línea»: sin eso, el modelo
+    // se llevaría por delante todo el stderr restante.
+    let hasta = if sufijo.is_empty() {
+        resto.find('\n').unwrap_or(resto.len())
+    } else {
+        match resto.find(sufijo) {
+            Some(fin) => fin,
+            None => {
+                return Err(format!(
+                    "el stderr abre con `{prefijo}` y no cierra con `{sufijo}`"
+                ));
+            }
+        }
+    };
+
+    let modelo = resto[..hasta].trim();
+    if modelo.is_empty() {
+        return Err(format!(
+            "el patrón `{pattern}` casó y no dejó ningún nombre"
+        ));
+    }
+
+    // El proveedor y las llamadas a herramientas no salen del stderr: esta vía
+    // sólo confirma el modelo, y decirlo es mejor que inventarlos. Un
+    // `tool_calls` vacío fabricado sería exactamente la mentira que el proyecto
+    // impide, así que el manifiesto de un proveedor así no declara herramientas.
+    Ok(ObservedProvenance::new(
+        String::new(),
+        modelo.to_string(),
+        Vec::new(),
+        Vec::new(),
+        None,
+        None,
+    ))
+}

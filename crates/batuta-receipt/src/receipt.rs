@@ -106,6 +106,8 @@ pub struct Receipt {
     /// El nombre con el que se le pidió al proveedor. Es el que el registro
     /// anota, y por tanto el único con el que se puede contrastar.
     route_model: String,
+    /// El nombre con el que la máquina lo anota, si se declaró distinto.
+    observed_as: Option<String>,
     manifest: PathBuf,
     manifest_sha256: String,
     argv: Vec<String>,
@@ -141,6 +143,12 @@ impl Receipt {
     /// registro, y del registro al manifiesto.
     pub fn route_model(&self) -> &str {
         &self.route_model
+    }
+
+    /// El nombre con el que la máquina lo anota, si se declaró distinto del que
+    /// se le mandó.
+    pub fn observed_as(&self) -> Option<&str> {
+        self.observed_as.as_deref()
     }
 
     /// El `argv` **real** con el que se lanzó el proceso, no el del manifiesto.
@@ -231,6 +239,16 @@ pub struct RunFacts {
     /// corridas, acusando al proveedor de correr otro modelo cuando corre el
     /// correcto.
     pub route_model: String,
+    /// El nombre con el que **la máquina lo anota**, cuando no es el que se le
+    /// mandó.
+    ///
+    /// Cuarto y último nombre de la cadena, y se **declara** en el manifiesto en
+    /// vez de derivarse. Medido: `Qwen3.8 Max` se anota `QWEN3_8_MAX_THINKING`.
+    /// Un normalizador habría acertado en siete de nueve modelos de abacus y
+    /// habría tapado los dos únicos interesantes, que resolvieron a una variante
+    /// distinta de la pedida. Un normalizador convierte una discrepancia en una
+    /// coincidencia; un alias declarado la conserva.
+    pub observed_as: Option<String>,
     /// Si este proveedor deja registro legible, y por tanto si su procedencia se
     /// puede **comprobar** o sólo creer.
     ///
@@ -290,6 +308,7 @@ impl Receipt {
             provider,
             model_requested,
             route_model,
+            observed_as,
             provenance_source,
             manifest,
             manifest_sha256,
@@ -313,15 +332,17 @@ impl Receipt {
         // Confirmado sólo si había registro que leer, se leyó, **y nombra el
         // modelo que se pidió**. Un registro legible que nombra otro modelo no
         // confirma nada: confirma lo contrario.
-        let model_confirmed = provenance_source == ProvenanceSource::SessionLog
+        let esperado = observed_as.as_deref().unwrap_or(route_model.as_str());
+        let model_confirmed = provenance_source.es_observable()
             && observed
                 .as_ref()
-                .is_ok_and(|observada| observada.model() == route_model);
+                .is_ok_and(|observada| observada.model() == esperado);
 
         Self {
             provider,
             model_requested,
             route_model,
+            observed_as,
             manifest,
             manifest_sha256,
             argv,
@@ -351,6 +372,7 @@ impl Receipt {
             expected_token,
             observed,
             route_model,
+            observed_as,
             declared_tools,
             scope_violations,
             provenance_source,
@@ -380,7 +402,7 @@ impl Receipt {
         // le puede comprobar el uso de herramientas: por eso `abacus` contiene
         // por bandera (`--disallowed-tools "*"`) lo que dsh deja observar. Cada
         // uno con lo que su transporte permite, y el recibo dice cuál es cuál.
-        if provenance_source == ProvenanceSource::Declared {
+        if !provenance_source.es_observable() {
             if !scope_violations.is_empty() {
                 return Verdict::Red(RedReason::ScopeViolation {
                     paths: scope_violations.clone(),
@@ -398,11 +420,13 @@ impl Receipt {
             }
         };
 
-        // Los dos nombres del **mismo** espacio: el que se le pidió al proveedor
-        // y el que el proveedor anotó. El identificador de batuta no entra aquí.
-        if observed.model() != route_model {
+        // Los dos nombres del **mismo** espacio: el que la máquina debía anotar
+        // —el alias declarado, o el que se le mandó si no hay alias— y el que
+        // anotó. El identificador de batuta no entra aquí.
+        let esperado = observed_as.as_deref().unwrap_or(route_model.as_str());
+        if observed.model() != esperado {
             return Verdict::Red(RedReason::ProvenanceMismatch {
-                requested: route_model.to_owned(),
+                requested: esperado.to_owned(),
                 observed: observed.model().to_owned(),
             });
         }

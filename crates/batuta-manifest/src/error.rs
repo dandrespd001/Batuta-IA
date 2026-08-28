@@ -163,6 +163,18 @@ pub enum ManifestError {
         /// Dónde.
         at: SourceLocation,
     },
+    /// `provenance.pattern` y `provenance.source` no se corresponden.
+    ///
+    /// Con `stderr_pattern` el patrón es obligatorio: sin él no hay nada que
+    /// leer. Con cualquier otro origen sobra, y un campo que no hace nada acaba
+    /// creyéndose. Es la misma clase de fallo que un `argv` que dice entregar el
+    /// prompt y no lo emite.
+    ProvenancePattern {
+        /// Dónde.
+        at: SourceLocation,
+        /// Qué pasa exactamente.
+        problem: &'static str,
+    },
     /// Un manifiesto sin ningún `[[models]]`.
     NoModels {
         /// Dónde.
@@ -307,6 +319,12 @@ impl fmt::Display for ManifestError {
                 )?;
                 lista(f, missing)
             }
+            Self::ProvenancePattern { at, problem } => write!(
+                f,
+                "{}:{}: `provenance.pattern` {problem}",
+                at.file.display(),
+                at.line
+            ),
             Self::PromptNeverDelivered { at } => write!(
                 f,
                 "{}:{}: `invoke.prompt.via` es `argv` y el `invoke.argv` no lleva \
@@ -356,6 +374,7 @@ impl ManifestError {
             | Self::DocumentShapeMissing { at, .. }
             | Self::UnknownPlaceholder { at, .. }
             | Self::SubstitutionIncomplete { at, .. }
+            | Self::ProvenancePattern { at, .. }
             | Self::PromptNeverDelivered { at, .. }
             | Self::NoModels { at, .. }
             | Self::ConflictingEnvVar { at, .. }

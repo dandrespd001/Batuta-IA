@@ -68,8 +68,19 @@ parser = "plain_text"
 
 # No hay registro de sesión legible como el de dsh: la procedencia se declara y
 # el canario la contrasta. Es más débil que `session_log`, y se dice.
+# ── Procedencia ──────────────────────────────────────────────────────────────
+# MEDIDO, no supuesto. `abacusai` escribe en su stderr, tras cada corrida:
+#
+#     model: ZAI_GLM_5_3_FLASH | cwd: /… | conversation: 121470e167
+#
+# así que su procedencia SI es legible: en otro sitio y otro formato que la de
+# dsh. Nueve canarios del 2026-08-28 salieron «sin confirmar» teniendo esa línea
+# delante; el tercer valor de `provenance.source` existe por eso.
+#
+# Es tan observacional como un registro de sesión: lo escribe el proveedor.
 [provenance]
-source = "declared"
+source  = "stderr_pattern"
+pattern = "model: {model} |"
 
 # QUIÉN ELIGE EL MODELO: **Abacus, no batuta.** El modelo se selecciona dentro
 # del producto; `route_model` documenta *qué hay que tener seleccionado allí*, no
@@ -100,48 +111,62 @@ source = "declared"
 [[models]]
 id              = "abacus-glm-5.3-flash"
 route_model     = "ZAI GLM 5.3 Flash"
+observed_as     = "ZAI_GLM_5_3_FLASH"
 roles           = ["review", "implementation"]
 max_sensitivity = "internal"
 
 [[models]]
 id              = "abacus-glm-5.3"
 route_model     = "ZAI GLM 5.3"
+observed_as     = "ZAI_GLM_5_3"
 roles           = ["review", "implementation"]
 max_sensitivity = "internal"
 
 [[models]]
 id              = "abacus-qwen3.8-27b"
 route_model     = "Qwen3.8 27B"
+observed_as     = "QWEN3_8_27B"
 roles           = ["implementation", "boilerplate"]
 max_sensitivity = "internal"
 
+# OJO CON ESTE Y CON GEMINI: Abacus resuelve el nombre de pantalla a una
+# variante DISTINTA de la pedida. Se pide `Qwen3.8 Max` y se anota
+# `QWEN3_8_MAX_THINKING`. Por eso `observed_as` se declara y no se normaliza: un
+# normalizador —mayúsculas y espacios a guiones bajos— habría acertado en siete
+# de estos nueve y habría tapado justo los dos interesantes. Un normalizador
+# convierte una discrepancia en una coincidencia; un alias declarado la conserva.
 [[models]]
 id              = "abacus-qwen3.8-max"
 route_model     = "Qwen3.8 Max"
+observed_as     = "QWEN3_8_MAX_THINKING"
 roles           = ["review", "implementation"]
 max_sensitivity = "internal"
 
 [[models]]
 id              = "abacus-qwen3.8-flash-next"
 route_model     = "Qwen3.8 Flash Next"
+observed_as     = "QWEN3_8_FLASH_NEXT"
 roles           = ["implementation", "boilerplate"]
 max_sensitivity = "internal"
 
 [[models]]
 id              = "abacus-grok-4.5"
 route_model     = "Grok 4.5"
+observed_as     = "XAI_GROK_4_5"
 roles           = ["review", "implementation"]
 max_sensitivity = "internal"
 
 [[models]]
 id              = "abacus-grok-4.6"
 route_model     = "Grok 4.6"
+observed_as     = "XAI_GROK_4_6"
 roles           = ["review", "implementation"]
 max_sensitivity = "internal"
 
 [[models]]
 id              = "abacus-gemini-3.7-flash"
 route_model     = "Gemini 3.7 Flash"
+observed_as     = "GEMINI_3_7_FLASH_THINKING"
 roles           = ["implementation", "boilerplate"]
 max_sensitivity = "internal"
 
@@ -152,6 +177,7 @@ max_sensitivity = "internal"
 [[models]]
 id              = "abacus-routellm"
 route_model     = "RouteLLM"
+observed_as     = "ROUTE_LLM"
 roles           = ["implementation"]
 max_sensitivity = "internal"
 

@@ -16,6 +16,7 @@ fn hechos_buenos() -> RunFacts {
         provider: "dsh".to_string(),
         model_requested: "dsh-deepseek-v4-flash".to_string(),
         route_model: "deepseek-v4-flash".to_string(),
+        observed_as: None,
         provenance_source: ProvenanceSource::SessionLog,
         manifest: PathBuf::from("providers/dsh.toml"),
         manifest_sha256: "a".repeat(64),
@@ -351,6 +352,68 @@ fn un_modelo_de_ruta_distinto_del_anotado_sigue_siendo_rojo() {
             observed: "minimax-m2".to_string(),
         }),
         "el motivo compara los dos nombres del mismo espacio"
+    );
+    assert!(!recibo.model_confirmed());
+}
+
+/// **El nombre que la máquina anota es un tercer nombre, y se declara.**
+///
+/// Medido contra abacus el 2026-08-28: se pide `Qwen3.8 Max` y su stderr anota
+/// `QWEN3_8_MAX_THINKING`. Sin `observed_as`, la única salida sería normalizar
+/// —mayúsculas y espacios a guiones bajos—, que habría acertado en siete de los
+/// nueve modelos y habría tapado los dos únicos interesantes: los que Abacus
+/// resolvió a una variante **distinta** de la pedida.
+///
+/// Un normalizador convierte una discrepancia en una coincidencia. Un alias
+/// declarado la conserva.
+#[test]
+fn el_alias_declarado_es_lo_que_se_contrasta_con_el_registro() {
+    let mut hechos = hechos_buenos();
+    hechos.route_model = "Qwen3.8 Max".to_string();
+    hechos.observed_as = Some("QWEN3_8_MAX_THINKING".to_string());
+    hechos.observed = Ok(ObservedProvenance::new(
+        "abacus".to_string(),
+        "QWEN3_8_MAX_THINKING".to_string(),
+        vec!["conv-1".to_string()],
+        vec![("bash".to_string(), 4)],
+        None,
+        None,
+    ));
+
+    let recibo = Receipt::seal(hechos);
+
+    assert!(recibo.verdict().is_green(), "{:?}", recibo.verdict());
+    assert!(
+        recibo.model_confirmed(),
+        "con alias declarado y registro que lo nombra, el modelo SÍ está confirmado"
+    );
+    // Y el recibo conserva los tres nombres, que es lo que permite ir en las dos
+    // direcciones.
+    assert_eq!(recibo.route_model(), "Qwen3.8 Max");
+    assert_eq!(recibo.observed_as(), Some("QWEN3_8_MAX_THINKING"));
+}
+
+/// Y el alias no tapa una discrepancia de verdad: si la máquina anota otra cosa
+/// distinta del alias, sigue siendo rojo.
+#[test]
+fn un_alias_declarado_no_tapa_una_discrepancia() {
+    let mut hechos = hechos_buenos();
+    hechos.route_model = "Gemini 3.7 Flash".to_string();
+    hechos.observed_as = Some("GEMINI_3_7_FLASH_THINKING".to_string());
+    hechos.observed = Ok(ObservedProvenance::new(
+        "abacus".to_string(),
+        "GEMINI_3_7_FLASH".to_string(),
+        vec!["conv-1".to_string()],
+        vec![("bash".to_string(), 4)],
+        None,
+        None,
+    ));
+
+    let recibo = Receipt::seal(hechos);
+
+    assert!(
+        !recibo.verdict().is_green(),
+        "una variante distinta es roja"
     );
     assert!(!recibo.model_confirmed());
 }

@@ -323,8 +323,27 @@ closed_vocabulary! {
     ProvenanceSource = "provenance_source" {
         /// El proveedor deja un registro legible con el modelo que corrió.
         SessionLog = "session_log",
+        /// El proveedor nombra el modelo en su **stderr**, con un patrón que el
+        /// manifiesto declara.
+        ///
+        /// No es una hipótesis: `abacusai` escribe `model: ZAI_GLM_5_3_FLASH |
+        /// cwd: … | conversation: …`. Nueve canarios salieron «sin confirmar»
+        /// teniendo la respuesta delante. Es tan observacional como
+        /// `session_log`: lo escribe la máquina, no batuta.
+        StderrPattern = "stderr_pattern",
         /// No hay registro: se anota lo pedido y lo contrasta el canario.
         Declared = "declared",
+    }
+}
+
+impl ProvenanceSource {
+    /// ¿Se puede **comprobar** qué modelo corrió, o sólo creerlo?
+    ///
+    /// Es la pregunta que separa un verde de «el transporte funciona» de un
+    /// verde de «corrió lo que se pidió». Las dos son resultados y hay que poder
+    /// distinguirlas sin deducirlas.
+    pub const fn es_observable(self) -> bool {
+        matches!(self, Self::SessionLog | Self::StderrPattern)
     }
 }
 

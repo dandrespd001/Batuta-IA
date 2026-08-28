@@ -23,7 +23,7 @@ use batuta_receipt::{Receipt, RunFacts};
 
 use crate::error::ExecError;
 use crate::materialize::materialize;
-use crate::provenance::{read_after, sessions_dir, snapshot};
+use crate::provenance::{read_after, read_stderr, sessions_dir, snapshot};
 use crate::run::{build_env, run};
 use crate::substitution::{RunContext, resolve, resolve_argv};
 
@@ -166,6 +166,12 @@ pub fn run_canary(
     // fabrica un `Ok` con el modelo pedido.
     let observada = match manifest.provenance() {
         ProvenanceSource::SessionLog => read_after(&sesiones, &antes),
+        // El patrón es obligatorio con esta fuente y la carga lo exige, así que
+        // aquí no puede faltar. Si faltara, se dice: no se inventa.
+        ProvenanceSource::StderrPattern => manifest.provenance_pattern().map_or_else(
+            || Err("el manifiesto no declara `provenance.pattern`".to_string()),
+            |patron| read_stderr(&salida.stderr, patron),
+        ),
         ProvenanceSource::Declared => {
             Err("el proveedor declara su modelo: no deja registro que leer".to_string())
         }
@@ -181,6 +187,7 @@ pub fn run_canary(
         provider: manifest.id().as_str().to_string(),
         model_requested: model.id().as_str().to_string(),
         route_model: model.route_model().as_str().to_string(),
+        observed_as: model.observed_as().map(str::to_string),
         provenance_source: manifest.provenance(),
         manifest: manifest.origin().to_path_buf(),
         manifest_sha256: manifest.source_sha256().to_string(),

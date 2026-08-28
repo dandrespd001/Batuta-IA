@@ -72,6 +72,7 @@ pub struct EnvPolicy {
 pub struct ModelEntry {
     id: ModelId,
     route_model: RouteModel,
+    observed_as: Option<String>,
     route_provider: Option<String>,
     roles: BTreeSet<Role>,
     max_sensitivity: Sensitivity,
@@ -101,6 +102,7 @@ pub struct ProviderManifest {
     env: EnvPolicy,
     parser: ParserKind,
     provenance: ProvenanceSource,
+    provenance_pattern: Option<String>,
     substitutions: Substitutions,
     runtime_files: Vec<RuntimeFile>,
     models: Vec<ModelEntry>,
@@ -191,6 +193,8 @@ struct ResponseDraft {
 #[serde(deny_unknown_fields)]
 struct ProvenanceDraft {
     source: Spanned<String>,
+    #[serde(default)]
+    pattern: Option<Spanned<String>>,
 }
 
 #[derive(Deserialize)]
@@ -209,6 +213,8 @@ struct RuntimeFileDraft {
 struct ModelDraft {
     id: Spanned<String>,
     route_model: Spanned<String>,
+    #[serde(default)]
+    observed_as: Option<Spanned<String>>,
     #[serde(default)]
     route_provider: Option<Spanned<String>>,
     roles: Vec<Spanned<String>>,
@@ -313,6 +319,7 @@ impl ProviderManifest {
         let env = validar_env(source, origin, env)?;
 
         let parser = vocabulary::<ParserKind>(source, origin, &response.parser, "response.parser")?;
+        let provenance_pattern = validar_patron_procedencia(source, origin, &provenance)?;
         let provenance = vocabulary::<ProvenanceSource>(
             source,
             origin,
@@ -346,6 +353,7 @@ impl ProviderManifest {
             env,
             parser,
             provenance,
+            provenance_pattern,
             substitutions,
             runtime_files: runtime_files_typed,
             models: models_typed,
@@ -466,6 +474,18 @@ impl ProviderManifest {
         self.kind
     }
 
+    /// El patrón con que se lee el modelo del `stderr`, si la procedencia es
+    /// `stderr_pattern`.
+    ///
+    /// Lleva `{model}` entre dos literales, y lo que quede en medio es lo que la
+    /// máquina anotó. Se **declara** y no se deriva: un normalizador que pasara
+    /// `Gemini 3.7 Flash` a `GEMINI_3_7_FLASH` habría acertado en siete de nueve
+    /// modelos de abacus y habría tapado los dos únicos interesantes, que
+    /// resolvieron a `..._THINKING`.
+    pub fn provenance_pattern(&self) -> Option<&str> {
+        self.provenance_pattern.as_deref()
+    }
+
     /// De dónde sale la procedencia del recibo.
     pub fn provenance(&self) -> ProvenanceSource {
         self.provenance
@@ -520,6 +540,16 @@ impl ModelEntry {
     /// Identificador dentro de batuta.
     pub fn id(&self) -> &ModelId {
         &self.id
+    }
+
+    /// El nombre con el que **la máquina lo anota**, si no es el que se pidió.
+    ///
+    /// Tercer nombre del mismo modelo, y los tres son distintos a propósito:
+    /// `id` es el de batuta, `route_model` el que se le manda al proveedor, y
+    /// éste el que aparece en su registro. Medido: `Qwen3.8 Max` se manda así y
+    /// se anota `QWEN3_8_MAX_THINKING`.
+    pub fn observed_as(&self) -> Option<&str> {
+        self.observed_as.as_deref()
     }
 
     /// El nombre que el proveedor entiende. **No se valida estáticamente:** el
@@ -787,12 +817,50 @@ fn validar_models(
         typed.push(ModelEntry {
             id: model_id,
             route_model,
+            observed_as: model
+                .observed_as
+                .as_ref()
+                .map(|spanned| spanned.get_ref().clone()),
             route_provider,
             roles,
             max_sensitivity,
         });
     }
     Ok(typed)
+}
+
+/// El patrón de procedencia existe **si y sólo si** el origen lo usa.
+///
+/// Con `stderr_pattern` es obligatorio: sin él no hay nada que leer. Con
+/// cualquier otro origen sobra, y un campo que no hace nada acaba creyéndose.
+/// Es la misma clase de fallo que un `argv` que dice entregar el prompt y no lo
+/// emite, así que se resuelve igual: **falla al cargar** (R1).
+fn validar_patron_procedencia(
+    source: &str,
+    origin: &Path,
+    provenance: &ProvenanceDraft,
+) -> Result<Option<String>, ManifestError> {
+    let por_stderr = provenance.source.get_ref() == "stderr_pattern";
+    let at = || location_at(source, provenance.source.span(), origin);
+
+    match (por_stderr, provenance.pattern.as_ref()) {
+        (true, None) => Err(ManifestError::ProvenancePattern {
+            at: at(),
+            problem: "falta, y `stderr_pattern` no tiene nada que leer sin él",
+        }),
+        (false, Some(_)) => Err(ManifestError::ProvenancePattern {
+            at: at(),
+            problem: "sobra: sólo `stderr_pattern` lo usa",
+        }),
+        (true, Some(patron)) if !patron.get_ref().contains("{model}") => {
+            Err(ManifestError::ProvenancePattern {
+                at: location_at(source, patron.span(), origin),
+                problem: "no lleva `{model}`, así que no señala nada",
+            })
+        }
+        (true, Some(patron)) => Ok(Some(patron.get_ref().clone())),
+        (false, None) => Ok(None),
+    }
 }
 
 /// Ficheros de corrida: forma decidida (lista o mapa), ruta contenida y formato

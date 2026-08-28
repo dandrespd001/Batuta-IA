@@ -141,8 +141,18 @@ fn la_procedencia_distingue_lo_observado_de_lo_prometido() {
         .unwrap();
     let dsh = cargados.iter().find(|m| m.id().as_str() == "dsh").unwrap();
 
+    // Los dos son observables, y por vías distintas: dsh deja registro de sesión
+    // y abacus nombra el modelo en su stderr. Que sean dos valores y no uno es lo
+    // que permite a cada proveedor decir la verdad sobre lo que ofrece en vez de
+    // disimularlo.
     assert_eq!(dsh.provenance(), ProvenanceSource::SessionLog);
-    assert_eq!(abacus.provenance(), ProvenanceSource::Declared);
+    assert_eq!(abacus.provenance(), ProvenanceSource::StderrPattern);
+    assert!(dsh.provenance().es_observable());
+    assert!(abacus.provenance().es_observable());
+
+    // Y el patrón existe si y sólo si la fuente lo usa.
+    assert_eq!(abacus.provenance_pattern(), Some("model: {model} |"));
+    assert_eq!(dsh.provenance_pattern(), None);
 }
 
 /// Criterio 2 (R1) — el mensaje tiene que ser accionable: fichero y línea.
@@ -427,4 +437,88 @@ fn con_el_prompt_por_stdin_el_argv_no_tiene_que_emitirlo() {
 
     ProviderManifest::parse(&por_stdin, Path::new("prueba.toml"))
         .expect("por stdin, el argv no tiene por qué nombrar el prompt");
+}
+
+/// **El tercer origen de procedencia: el stderr.**
+///
+/// No es especulación. Abacus escribe en su stderr `model: ZAI_GLM_5_3_FLASH |
+/// cwd: … | conversation: …`, así que su procedencia **sí** es legible: en otro
+/// sitio y en otro formato que la de dsh. Los nueve canarios del 2026-08-28
+/// salieron verdes con `model_confirmed: false` teniendo la respuesta delante.
+///
+/// El patrón se **declara**, no se adivina. Y `stderr_pattern` sin `pattern` no
+/// carga: es la misma clase de fallo que un `argv` que dice entregar el prompt y
+/// no lo emite.
+#[test]
+fn la_procedencia_por_stderr_exige_su_patron() {
+    let sin_patron = base().replace(
+        r#"[provenance]
+source = "declared""#,
+        r#"[provenance]
+source = "stderr_pattern""#,
+    );
+    let error = error_de(&sin_patron);
+    let mensaje = error.to_string();
+
+    assert!(mensaje.contains("pattern"), "{mensaje}");
+    assert!(mensaje.contains("stderr_pattern"), "{mensaje}");
+}
+
+/// Y al revés: un `pattern` con un origen que no lo usa es un campo que no hace
+/// nada, y un campo que no hace nada acaba creyéndose.
+#[test]
+fn un_patron_sin_procedencia_por_stderr_tampoco_carga() {
+    let patron_de_mas = base().replace(
+        r#"[provenance]
+source = "declared""#,
+        r#"[provenance]
+source = "declared"
+pattern = "model: {model} |""#,
+    );
+    let error = error_de(&patron_de_mas);
+
+    assert!(error.to_string().contains("pattern"), "{error}");
+}
+
+/// El patrón necesita `{model}`, o no señala nada.
+#[test]
+fn un_patron_sin_la_llave_del_modelo_no_carga() {
+    let ciego = base().replace(
+        r#"[provenance]
+source = "declared""#,
+        r#"[provenance]
+source = "stderr_pattern"
+pattern = "model: algo""#,
+    );
+    let error = error_de(&ciego);
+
+    assert!(error.to_string().contains("{model}"), "{error}");
+}
+
+/// **El nombre que la máquina anota puede no ser el que se pidió, y eso se
+/// declara en vez de normalizarse.**
+///
+/// Medido: `Gemini 3.7 Flash` sale anotado como `GEMINI_3_7_FLASH_THINKING` y
+/// `Qwen3.8 Max` como `QWEN3_8_MAX_THINKING`. Un normalizador —mayúsculas y
+/// espacios a guiones bajos— habría acertado en siete de nueve y **habría
+/// tapado justo esos dos**, que son los únicos interesantes: Abacus resolvió a
+/// una variante distinta de la pedida y nadie se habría enterado.
+#[test]
+fn un_modelo_puede_declarar_con_que_nombre_lo_anota_la_maquina() {
+    let con_alias = base().replace(
+        r#"route_model     = "modelo-remoto""#,
+        r#"route_model     = "modelo-remoto"
+observed_as     = "MODELO_REMOTO_THINKING""#,
+    );
+
+    let manifiesto =
+        ProviderManifest::parse(&con_alias, Path::new("prueba.toml")).expect("debe cargar");
+
+    assert_eq!(
+        manifiesto.models()[0].observed_as(),
+        Some("MODELO_REMOTO_THINKING")
+    );
+    // Y sin declararlo, no hay alias que inventar.
+    let sin_alias = ProviderManifest::parse(&base(), Path::new("prueba.toml")).expect("base");
+    assert_eq!(sin_alias.models()[0].observed_as(), None);
 }
