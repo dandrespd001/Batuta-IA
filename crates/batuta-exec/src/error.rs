@@ -22,6 +22,20 @@ pub enum ExecError {
         /// Todas las admitidas (R8).
         expected: Vec<String>,
     },
+    /// El manifiesto usa una llave incorporada que este encargo no puede llenar.
+    ///
+    /// Sólo `{route_provider}` puede faltar: es la única incorporada opcional.
+    /// Sustituirla por vacío sería lo cómodo y es lo peor de las tres salidas —la
+    /// cadena vacía viaja hasta el `argv` de un proceso real y nadie la ve—, así
+    /// que se para aquí. Un manifiesto que pide la ruta del proveedor y un modelo
+    /// que no la declara es un emparejamiento incoherente, y decirlo cuesta menos
+    /// que descubrirlo en una corrida.
+    MissingBuiltin {
+        /// Dónde aparecía la llave.
+        field: String,
+        /// La llave que no se puede llenar.
+        placeholder: String,
+    },
     /// Un fichero de corrida caería **dentro del worktree**.
     ///
     /// Es la comprobación que `batuta-manifest` no podía hacer, porque `parse()`
@@ -75,6 +89,12 @@ impl fmt::Display for ExecError {
                 }
                 Ok(())
             }
+            Self::MissingBuiltin { field, placeholder } => write!(
+                f,
+                "el manifiesto usa `{{{placeholder}}}` en `{field}` y este encargo no la trae; \
+                 no se sustituye por vacío, porque el vacío llegaría al proceso sin que nadie \
+                 lo vea"
+            ),
             Self::RuntimeFileInsideWorktree { path, worktree } => write!(
                 f,
                 "el fichero de corrida `{}` caería dentro del worktree `{}`; se rechaza antes de escribir",

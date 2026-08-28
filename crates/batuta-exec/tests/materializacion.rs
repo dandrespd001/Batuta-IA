@@ -43,8 +43,8 @@ fn dsh_materializa_sus_dos_ficheros_con_el_contenido_sustituido() {
         "el preset sale del modo de escritura: {settings}"
     );
     assert!(
-        !settings.contains('{'),
-        "quedó una llave sin sustituir: {settings}"
+        llave_sin_sustituir(&settings).is_none(),
+        "quedó una llave sin sustituir en: {settings}"
     );
 
     let _ = fs::remove_dir_all(&base);
@@ -98,4 +98,33 @@ fn estar_dentro_se_decide_por_componentes_y_no_por_prefijo() {
         Path::new("/tmp/otro/corrida"),
         Path::new("/tmp/arbol")
     ));
+}
+
+/// ¿Queda alguna llave `{algo}` sin sustituir?
+///
+/// **No vale buscar `{` a secas**, y este ayudante existe porque el test lo hacía:
+/// los documentos se serializan como JSON —que es YAML válido, medido contra
+/// dsh—, así que las llaves estructurales del formato están ahí por diseño. La
+/// aserción ingenua convertía la decisión de serialización en un fallo de test.
+///
+/// Lo detectó el modelo al que se delegaron estos cuerpos: no tocó el test,
+/// descartó dos atajos —TOML en un `.yml` rompería la integración medida, y un
+/// emisor YAML a mano es la deuda que el proyecto ya pagó una vez con el sha256
+/// artesanal— y lo reportó. Tenía razón.
+fn llave_sin_sustituir(texto: &str) -> Option<String> {
+    let bytes = texto.as_bytes();
+    for (inicio, _) in texto.match_indices('{') {
+        let resto = &texto[inicio + 1..];
+        let fin = resto.find('}')?;
+        let dentro = &resto[..fin];
+        let parece_llave = !dentro.is_empty()
+            && dentro
+                .bytes()
+                .all(|b| b.is_ascii_lowercase() || b == b'_' || b.is_ascii_digit());
+        if parece_llave {
+            let _ = bytes;
+            return Some(dentro.to_string());
+        }
+    }
+    None
 }

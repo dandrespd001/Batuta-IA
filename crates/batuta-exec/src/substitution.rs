@@ -49,9 +49,18 @@ fn valor_para(
     match clave {
         "model" => Ok(context.model.as_str().to_string()),
         "route_model" => Ok(context.route_model.as_str().to_string()),
-        // `route_provider` es la única incorporada opcional: si el manifiesto la
-        // usa y el encargo no trae ruta, se sustituye por vacío (ver desviación 1).
-        "route_provider" => Ok(context.route_provider.clone().unwrap_or_default()),
+        // La única incorporada opcional. Si el manifiesto la usa y el encargo no
+        // trae ruta, se para: una cadena vacía llegaría al `argv` de un proceso
+        // real sin que nadie la note.
+        "route_provider" => {
+            context
+                .route_provider
+                .clone()
+                .ok_or_else(|| ExecError::MissingBuiltin {
+                    field: field.to_string(),
+                    placeholder: "route_provider".to_string(),
+                })
+        }
         "workdir" => Ok(context.workdir.to_string_lossy().into_owned()),
         "run_dir" => Ok(context.run_dir.to_string_lossy().into_owned()),
         "prompt" => Ok(context.prompt.clone()),

@@ -123,3 +123,28 @@ fn lo_que_no_lleva_llaves_no_se_toca() {
     .expect("sin llaves no hay nada que resolver");
     assert_eq!(salida, texto);
 }
+
+/// La regla que el doc-comment de `resolve` ya enunciaba y ningún test fijaba:
+/// **nunca se sustituye por vacío**.
+///
+/// `route_provider` es la única incorporada opcional. Rellenarla con la cadena
+/// vacía era lo cómodo, y es la peor de las tres salidas: el vacío viaja hasta el
+/// `argv` de un proceso real y nadie lo ve. El modelo al que se delegó el cuerpo
+/// eligió el vacío porque no había ni variante de error ni prueba que lo
+/// prohibiera —y lo dejó dicho en sus desviaciones—. Ahora lo hay.
+#[test]
+fn una_incorporada_opcional_sin_valor_para_en_vez_de_vaciarse() {
+    let mut contexto = contexto(WriteMode::ValidatedPatch);
+    contexto.route_provider = None;
+
+    let error = resolve("{route_provider}", "prueba", &dsh(), &contexto)
+        .expect_err("sin ruta declarada no hay nada que poner");
+
+    match &error {
+        ExecError::MissingBuiltin { field, placeholder } => {
+            assert_eq!(field, "prueba");
+            assert_eq!(placeholder, "route_provider");
+        }
+        otro => panic!("se esperaba MissingBuiltin: {otro:?}"),
+    }
+}
