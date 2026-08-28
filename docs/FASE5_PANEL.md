@@ -200,7 +200,7 @@ con criterio binario, y verificación de los comandos en esta máquina antes de 
       elección de una instalación nueva fallaba porque `~/.local/state/batuta/` no
       existía todavía; arreglado igual que `canary` con `leases()`/`receipts()`
 
-### T6 · `nuevo-proveedor`, `nuevo-modelo`, `quitar-modelo` — **hecho** (pendiente de commit)
+### T6 · `nuevo-proveedor`, `nuevo-modelo`, `quitar-modelo` — **hecho** (`cfbf080`)
 - [x] `nuevo-proveedor` escribe una plantilla **comentada** que carga tal cual salvo los huecos evidentes
       (`declaracion::plantilla_proveedor`; ejecutable de partida `/bin/echo` para que
       `ProviderManifest::load` resuelva sin tocar nada, el hueco evidente es `route_model`)
