@@ -56,6 +56,15 @@ pub enum ExecError {
         /// Causa.
         source: std::io::Error,
     },
+    /// Otro encargo tiene los leases y sigue vivo.
+    ///
+    /// No se espera: un encargo que hace cola es un encargo que consume una
+    /// ranura sin hacer nada, y el sistema viejo se atascaba así. El error de
+    /// abajo **nombra al dueño**.
+    Admission {
+        /// Quién lo tiene y por qué no se pudo admitir.
+        source: batuta_lease::LeaseError,
+    },
     /// El proceso no se pudo lanzar.
     Spawn {
         /// El programa que se intentó.
@@ -89,6 +98,7 @@ impl fmt::Display for ExecError {
                 }
                 Ok(())
             }
+            Self::Admission { source } => write!(f, "no se pudo admitir el encargo: {source}"),
             Self::MissingBuiltin { field, placeholder } => write!(
                 f,
                 "el manifiesto usa `{{{placeholder}}}` en `{field}` y este encargo no la trae; \

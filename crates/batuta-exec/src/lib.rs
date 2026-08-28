@@ -5,12 +5,14 @@
 //! falta para saberlo —`argv` real, código de salida, stderr íntegro, ficheros de
 //! corrida, procedencia observada— y `batuta-receipt` lo sella.
 
+pub mod canary;
 pub mod error;
 pub mod materialize;
 pub mod provenance;
 pub mod run;
 pub mod substitution;
 
+pub use canary::{CanaryRequest, generate_token, run_canary};
 pub use error::ExecError;
 pub use materialize::materialize;
 pub use provenance::{parse_log, project_key, read_after, snapshot};

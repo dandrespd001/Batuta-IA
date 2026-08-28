@@ -136,6 +136,7 @@ fn la_salida_declara_nombres_de_entorno_y_ningun_valor() {
 fn agotar_el_limite_mata_el_arbol_entero() {
     let dormilon = fixture("dormilon.toml");
     let argv: Vec<String> = dormilon.invoke().argv().to_vec();
+    let antes = pids_con("sleep 61.5");
 
     let salida = run(
         &programa(&dormilon),
@@ -157,15 +158,30 @@ fn agotar_el_limite_mata_el_arbol_entero() {
         salida.duration
     );
 
-    // Observacional: los nietos llevan una duración irrepetible a propósito.
+    // Observacional, y por diferencia: lo que importa es que no quede vivo nada
+    // que ESTA corrida lanzara.
     std::thread::sleep(Duration::from_millis(400));
-    let vivos = Command::new("pgrep")
-        .args(["-f", "sleep 61.5"])
+    let sobrevivientes: Vec<_> = pids_con("sleep 61.5").difference(&antes).cloned().collect();
+    assert!(
+        sobrevivientes.is_empty(),
+        "quedaron nietos vivos {sobrevivientes:?}: matar la tarea tiene que matar el árbol"
+    );
+}
+
+/// Los PID que ahora mismo casan con un marcador.
+///
+/// Se toma **antes y después**, y se compara la diferencia. Consultar la tabla de
+/// procesos a secas es frágil: los `sleep` de una suite interrumpida sobreviven un
+/// minuto, y la siguiente corrida los ve y falla por algo que no rompió nadie.
+/// Es la misma disciplina que el lector de procedencia usa con las sesiones, por
+/// el mismo motivo: lo que importa es lo que apareció, no lo que hay.
+fn pids_con(marcador: &str) -> std::collections::BTreeSet<String> {
+    let salida = Command::new("pgrep")
+        .args(["-f", marcador])
         .output()
         .expect("pgrep");
-    let cuenta = String::from_utf8_lossy(&vivos.stdout).lines().count();
-    assert_eq!(
-        cuenta, 0,
-        "quedaron {cuenta} nietos vivos: matar la tarea tiene que matar el árbol"
-    );
+    String::from_utf8_lossy(&salida.stdout)
+        .lines()
+        .map(str::to_string)
+        .collect()
 }

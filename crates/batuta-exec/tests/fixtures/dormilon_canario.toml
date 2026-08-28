@@ -1,0 +1,42 @@
+# Proveedor de prueba: un proceso que no termina, con nietos.
+#
+# Es el único que puede demostrar R6. `sh -c` lanza dos hijos y espera, así que
+# matar sólo al hijo directo dejaría dos nietos vivos gastando lo que gasten. La
+# duración es rara a propósito para poder buscarla con `pgrep -f` sin confundirla
+# con ningún `sleep` del sistema.
+schema_version = 1
+id             = "dormilon-canario"
+kind           = "cli"
+
+[executable]
+program       = "/bin/sh"
+version_pin   = "posix"
+version_probe = ["--version"]
+resolve       = ["/bin/sh"]
+
+[invoke]
+argv    = ["-c", "sleep 62.5 & sleep 62.5 & wait"]
+workdir = "worktree"
+prompt  = { via = "argv" }
+
+[env]
+allow = ["HOME", "PATH"]
+
+[auth]
+method = "oauth_cli"
+
+[response]
+parser = "plain_text"
+
+[provenance]
+source = "declared"
+
+[[models]]
+id              = "dormilon-canario-modelo"
+route_model     = "dormilon-canario"
+roles           = ["implementation"]
+max_sensitivity = "internal"
+
+[canary]
+prompt = "Responde exactamente con: {token}"
+expect = "token_echo"
