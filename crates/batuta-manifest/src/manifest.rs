@@ -640,6 +640,12 @@ fn validar_env(source: &str, origin: &Path, env: EnvDraft) -> Result<EnvPolicy, 
                 field: format!("env.set.{key}"),
                 source: error,
             })?;
+            if deny.contains(&name) {
+                return Err(ManifestError::ConflictingEnvVar {
+                    at: location_at(source, spanned.span(), origin),
+                    name: name.as_str().to_string(),
+                });
+            }
             set.push((name, value.clone()));
         }
     }

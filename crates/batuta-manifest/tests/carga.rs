@@ -324,3 +324,25 @@ fn una_version_de_esquema_no_soportada_tiene_su_propio_error() {
     assert!(mensaje.contains("999"), "{mensaje}");
     assert!(error.location().is_some(), "tiene que decir donde");
 }
+
+/// Una ambigüedad no se resuelve eligiendo ganador: se rechaza.
+///
+/// Al implementar `build_env` apareció la pregunta de si `deny` gana sobre `set`
+/// cuando los dos nombran la misma variable. Cualquiera de las dos respuestas
+/// deja un manifiesto que dice dos cosas contrarias y una de ellas no se cumple,
+/// en silencio. Es el mismo criterio que R1 aplica al ejecutor: incoherente
+/// falla al **cargar**, no en la corrida.
+#[test]
+fn fijar_y_denegar_la_misma_variable_no_se_admite() {
+    let roto = base().replace(
+        "allow = [\"HOME\", \"PATH\"]",
+        "allow = [\"HOME\", \"PATH\"]\ndeny  = [\"BATUTA_CONFLICTO\"]\nset   = { BATUTA_CONFLICTO = \"algo\" }",
+    );
+    let error = error_de(&roto);
+
+    assert!(
+        matches!(error, ManifestError::ConflictingEnvVar { .. }),
+        "{error:?}"
+    );
+    assert!(error.to_string().contains("BATUTA_CONFLICTO"), "{error}");
+}

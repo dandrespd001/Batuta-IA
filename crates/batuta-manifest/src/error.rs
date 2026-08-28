@@ -141,6 +141,18 @@ pub enum ManifestError {
         /// Las variantes que faltan.
         missing: Vec<&'static str>,
     },
+    /// La misma variable de entorno se fija y se deniega.
+    ///
+    /// No se resuelve eligiendo ganador. Cualquiera de las dos respuestas deja un
+    /// manifiesto que dice dos cosas contrarias y una de ellas no se cumple, en
+    /// silencio. Es el mismo criterio que R1 aplica al ejecutor: lo incoherente
+    /// falla al **cargar**, no en la corrida.
+    ConflictingEnvVar {
+        /// Dónde.
+        at: SourceLocation,
+        /// La variable que aparece en `set` y en `deny`.
+        name: String,
+    },
     /// Un manifiesto sin ningún `[[models]]`.
     NoModels {
         /// Dónde.
@@ -291,6 +303,13 @@ impl fmt::Display for ManifestError {
                 at.file.display(),
                 at.line
             ),
+            Self::ConflictingEnvVar { at, name } => write!(
+                f,
+                "{}:{}: `{name}` está a la vez en `env.set` y en `env.deny`: un manifiesto no \
+                 puede fijar y denegar la misma variable",
+                at.file.display(),
+                at.line
+            ),
             Self::DuplicateModel { at, id } => write!(
                 f,
                 "{}:{}: modelo duplicado: `{id}`",
@@ -321,6 +340,7 @@ impl ManifestError {
             | Self::UnknownPlaceholder { at, .. }
             | Self::SubstitutionIncomplete { at, .. }
             | Self::NoModels { at, .. }
+            | Self::ConflictingEnvVar { at, .. }
             | Self::DuplicateModel { at, .. } => Some(at),
         }
     }
