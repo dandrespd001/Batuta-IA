@@ -205,11 +205,12 @@ fn el_manifiesto_discrepante_carga_sin_quejarse_porque_su_error_no_es_de_forma()
     assert_eq!(manifiesto.models().len(), 1);
     assert_eq!(
         manifiesto.models()[0].route_model().as_str(),
-        "deepseek-v4-flash",
-        "lo que batuta pide"
+        "deepseek-v4-flash-que-nadie-corrio",
+        "lo que batuta cree pedir"
     );
 
-    // Y su documento de settings fija otro, que es toda la trampa.
+    // Y su documento de settings fija otro —el real—, que es toda la trampa: la
+    // corrida sale con éxito y el registro nombra un modelo distinto del pedido.
     let settings = manifiesto
         .runtime_files()
         .iter()
@@ -217,7 +218,7 @@ fn el_manifiesto_discrepante_carga_sin_quejarse_porque_su_error_no_es_de_forma()
         .expect("el documento de settings");
     let texto = format!("{:?}", settings.document());
     assert!(
-        texto.contains("MiniMax-M2.7"),
-        "el documento tiene que fijar el modelo equivocado: {texto}"
+        texto.contains("deepseek-v4-flash") && !texto.contains("que-nadie-corrio"),
+        "el documento tiene que fijar el modelo que de verdad corre: {texto}"
     );
 }

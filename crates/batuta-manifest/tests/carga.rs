@@ -346,3 +346,54 @@ fn fijar_y_denegar_la_misma_variable_no_se_admite() {
     );
     assert!(error.to_string().contains("BATUTA_CONFLICTO"), "{error}");
 }
+
+/// **Un manifiesto que declara por dónde entra el prompt y no lo emite es
+/// irresoluble, y R1 dice que eso falla al cargar.**
+///
+/// No es una hipótesis: `providers/abacus.toml` lo tenía. Declaraba
+/// `prompt = { via = "argv" }` y su `argv` no llevaba `{prompt}` en ninguna
+/// posición, así que el encargo se habría perdido en el camino. El canario
+/// habría llamado a Abacus con el prompt vacío, habría recibido una respuesta
+/// perfectamente plausible, y el recibo la habría sellado.
+///
+/// Es exactamente la clase de fallo que este proyecto existe para impedir:
+/// **algo declarado que nadie demuestra** (R2), sólo que esta vez en el propio
+/// manifiesto en vez de en el orquestador.
+#[test]
+fn un_argv_que_no_emite_el_prompt_no_carga() {
+    let sin_prompt = base().replace(
+        r#"["--model", "{route_model}", "{prompt}"]"#,
+        r#"["--model", "{route_model}"]"#,
+    );
+    assert!(
+        !sin_prompt.contains("{prompt}"),
+        "la mutación tiene que quitarlo"
+    );
+
+    let error = error_de(&sin_prompt);
+    let mensaje = error.to_string();
+
+    assert!(
+        mensaje.contains("prompt"),
+        "no nombra lo que falta: {mensaje}"
+    );
+    assert!(mensaje.contains("argv"), "no dice dónde falta: {mensaje}");
+}
+
+/// Y con `stdin` o `file` el `argv` **no** lleva `{prompt}`: exigirlo ahí sería
+/// exigir lo contrario de lo que el campo dice.
+#[test]
+fn con_el_prompt_por_stdin_el_argv_no_tiene_que_emitirlo() {
+    let por_stdin = base()
+        .replace(
+            r#"["--model", "{route_model}", "{prompt}"]"#,
+            r#"["--model", "{route_model}"]"#,
+        )
+        .replace(
+            r#"prompt  = { via = "argv" }"#,
+            r#"prompt  = { via = "stdin" }"#,
+        );
+
+    ProviderManifest::parse(&por_stdin, Path::new("prueba.toml"))
+        .expect("por stdin, el argv no tiene por qué nombrar el prompt");
+}

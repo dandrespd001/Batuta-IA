@@ -284,6 +284,22 @@ impl ProviderManifest {
         } = invoke;
         let prompt_via =
             vocabulary::<PromptDelivery>(source, origin, &prompt.via, "invoke.prompt.via")?;
+
+        // Declarar por dónde entra el prompt y no emitirlo deja el encargo en el
+        // camino: el proveedor contestaría a una llamada sin tarea. R1 dice que
+        // un manifiesto irresoluble falla **al cargar**, no a mitad de la corrida.
+        if prompt_via == PromptDelivery::Argv
+            && !argv
+                .iter()
+                .any(|spanned| spanned.get_ref().contains("{prompt}"))
+        {
+            let at = argv.first().map_or_else(
+                || location_at(source, 0..0, origin),
+                |spanned| location_at(source, spanned.span(), origin),
+            );
+            return Err(ManifestError::PromptNeverDelivered { at });
+        }
+
         let invoke = Invoke {
             argv: argv
                 .iter()

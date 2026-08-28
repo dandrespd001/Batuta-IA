@@ -1,9 +1,10 @@
 # MANIFIESTO DELIBERADAMENTE EQUIVOCADO. No es un proveedor: es una prueba.
 #
 # Es idéntico a `providers/dsh.toml` salvo en una cosa: su documento de settings
-# fija `minimax / MiniMax-M2.7` mientras su `[[models]]` pide
-# `deepseek-official / deepseek-v4-flash`. Los dos nombres están medidos y son
-# reales (docs/medidas/DSH_HEADLESS.md §, líneas 102-105).
+# fija `deepseek-official / deepseek-v4-flash` con literales, mientras su
+# `[[models]]` declara pedir `deepseek-v4-flash-que-nadie-corrio`. La corrida
+# tiene éxito —el modelo del documento es el real— y el recibo tiene que salir
+# rojo igual, porque el registro nombra un modelo distinto del pedido.
 #
 # Reproduce EXACTAMENTE el fallo que originó el proyecto: se pidió
 # `deepseek-v4-flash` tres veces y corrió MiniMax las tres, porque el modelo lo
@@ -155,13 +156,22 @@ approval = "never"
 path   = "settings.yaml"
 format = "yaml"
 
-# AQUI ESTA LA MENTIRA, y es la unica diferencia con el manifiesto real: literales
-# en vez de `{route_provider}` y `{route_model}`. El documento de settings es el
-# que manda —schema defaults -> base de composicion -> documento de usuario—, asi
-# que dsh correra MiniMax mientras batuta cree haber pedido deepseek-v4-flash.
+# AQUI ESTA LA MENTIRA, y es la unica diferencia con el manifiesto real:
+# literales en vez de `{route_provider}` y `{route_model}`. El documento de
+# settings es el que manda —schema defaults -> base de composicion -> documento
+# de usuario—, asi que dsh correra deepseek-v4-flash mientras el `[[models]]` de
+# abajo dice haber pedido otra cosa.
+#
+# El modelo fijado aqui es el REAL a proposito. La primera version de este
+# fichero fijaba `minimax / MiniMax-M2.7`, y el canario salio rojo por
+# `ProcessFailed`: dsh no tiene adaptador para minimax en esta maquina, asi que
+# el proceso murio antes de correr nada. Rojo, si, pero por el motivo
+# equivocado. La discrepancia que hay que demostrar es la que sobrevive a una
+# corrida CON EXITO, que es la forma exacta del fallo original: se pidio un
+# modelo, corrio otro, y todo salio con codigo 0.
 [runtime_files.content.agent-default-model]
-provider = "minimax"
-model    = "MiniMax-M2.7"
+provider = "deepseek-official"
+model    = "deepseek-v4-flash"
 
 [runtime_files.content.permission]
 defaultPreset = "{preset}"
@@ -170,9 +180,11 @@ defaultPreset = "{preset}"
 # UNO, porque uno es el que tiene canario (R2). Los demás entran cuando su
 # canario pase, no antes: el manifiesto no es una lista de deseos.
 [[models]]
+# Lo que batuta CREE haber pedido. No existe, y ese es el punto: si el recibo
+# saliera verde estaria afirmando que corrio un modelo que no existe.
 id              = "dsh-deepseek-v4-flash"
 route_provider  = "deepseek-official"
-route_model     = "deepseek-v4-flash"
+route_model     = "deepseek-v4-flash-que-nadie-corrio"
 roles           = ["implementation", "boilerplate", "tests", "bulk_refactor"]
 max_sensitivity = "internal"
 

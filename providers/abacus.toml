@@ -39,8 +39,13 @@ store_path = "~/.abacusai"
 # (`abacusai [options] [prompt]`). **No está medido si acepta stdin**: se resuelve
 # con el canario de la Fase 3, no adivinando aquí.
 [invoke]
+# `{prompt}` va el ULTIMO y es posicional: `abacusai [options] [prompt]`, medido
+# contra `abacusai --help` de la 2.6.11. Faltaba, y sin el la llamada habria
+# llegado a Abacus SIN TAREA: el proveedor habria contestado algo plausible y el
+# recibo lo habria sellado. Ahora la carga lo exige (`PromptNeverDelivered`).
 argv = ["--print", "--model", "{route_model}", "--output-format", "text",
-        "--permission-mode", "normal", "--disallowed-tools", "*", "--no-agents-md"]
+        "--permission-mode", "normal", "--disallowed-tools", "*", "--no-agents-md",
+        "{prompt}"]
 workdir = "worktree"
 prompt  = { via = "argv" }
 

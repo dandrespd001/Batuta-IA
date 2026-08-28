@@ -153,6 +153,16 @@ pub enum ManifestError {
         /// La variable que aparece en `set` y en `deny`.
         name: String,
     },
+    /// El prompt entra por `argv` y el `argv` no lo emite en ninguna posición.
+    ///
+    /// El encargo se perdería en el camino: el proveedor recibiría una llamada
+    /// sin tarea, contestaría algo plausible, y el recibo lo sellaría. Es la
+    /// clase de fallo que este proyecto existe para impedir —algo declarado que
+    /// nadie demuestra (R2)—, y `providers/abacus.toml` lo tenía.
+    PromptNeverDelivered {
+        /// Dónde.
+        at: SourceLocation,
+    },
     /// Un manifiesto sin ningún `[[models]]`.
     NoModels {
         /// Dónde.
@@ -297,6 +307,13 @@ impl fmt::Display for ManifestError {
                 )?;
                 lista(f, missing)
             }
+            Self::PromptNeverDelivered { at } => write!(
+                f,
+                "{}:{}: `invoke.prompt.via` es `argv` y el `invoke.argv` no lleva \
+                 `{{prompt}}` en ninguna posición: el encargo no llegaría al proveedor",
+                at.file.display(),
+                at.line
+            ),
             Self::NoModels { at } => write!(
                 f,
                 "{}:{}: el manifiesto no declara ningún `[[models]]`",
@@ -339,6 +356,7 @@ impl ManifestError {
             | Self::DocumentShapeMissing { at, .. }
             | Self::UnknownPlaceholder { at, .. }
             | Self::SubstitutionIncomplete { at, .. }
+            | Self::PromptNeverDelivered { at, .. }
             | Self::NoModels { at, .. }
             | Self::ConflictingEnvVar { at, .. }
             | Self::DuplicateModel { at, .. } => Some(at),
