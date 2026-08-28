@@ -24,7 +24,7 @@ use batuta_receipt::{Receipt, RunFacts};
 use crate::error::ExecError;
 use crate::materialize::materialize;
 use crate::provenance::{read_after, sessions_dir, snapshot};
-use crate::run::{build_env, resolve_program, run};
+use crate::run::{build_env, run};
 use crate::substitution::{RunContext, resolve, resolve_argv};
 
 /// Lo que hace falta para lanzar un canario.
@@ -134,17 +134,14 @@ pub fn run_canary(
 
     let argv = resolve_argv(manifest, &contexto)?;
 
-    // Sin programa no hay corrida ni hechos que sellar: es un fallo de
-    // lanzamiento, no un recibo.
-    let Some(programa) = resolve_program(manifest.executable().resolve()) else {
-        return Err(ExecError::Spawn {
-            program: manifest.executable().program().to_path_buf(),
-            source: std::io::Error::new(
-                std::io::ErrorKind::NotFound,
-                "ninguna ruta de `executable.resolve` existe",
-            ),
-        });
-    };
+    // La resolución es la del manifiesto y no una propia: entiende `~` y `$PATH`
+    // y comprueba el `sha256` (R11). Una búsqueda aparte no habría encontrado el
+    // binario de dsh, cuyo `resolve` empieza por `~`.
+    let programa = manifest
+        .verify_executable()
+        .map_err(|source| ExecError::Executable {
+            source: Box::new(source),
+        })?;
 
     let entorno = build_env(manifest.env());
 

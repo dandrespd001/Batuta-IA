@@ -12,7 +12,7 @@
 
 use std::io::Read;
 use std::os::unix::process::CommandExt;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::process::{Command, Stdio};
 use std::time::{Duration, Instant};
 
@@ -198,16 +198,4 @@ pub fn run(
         duration: inicio.elapsed(),
         timed_out,
     })
-}
-
-/// Resuelve el programa contra las rutas de `resolve` del manifiesto.
-///
-/// Existe aparte de `ProviderManifest::verify_executable` porque aquí se admite
-/// una raíz distinta para las pruebas: los fixtures apuntan a `/bin/echo` y a
-/// `/bin/sleep`, que no tienen `sha256` fijado ni falta que hace.
-pub fn resolve_program(candidates: &[String]) -> Option<PathBuf> {
-    candidates
-        .iter()
-        .map(PathBuf::from)
-        .find(|ruta| ruta.is_file())
 }

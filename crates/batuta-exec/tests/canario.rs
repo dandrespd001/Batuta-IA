@@ -172,3 +172,33 @@ fn pids_con(marcador: &str) -> std::collections::BTreeSet<String> {
         .map(str::to_string)
         .collect()
 }
+
+/// **El canario resuelve el binario como lo resuelve el manifiesto, no aparte.**
+///
+/// El primer canario tenía su propia búsqueda: la primera entrada de `resolve`
+/// que fuera un fichero. Esa búsqueda no entiende `~` ni `$PATH`, y el `resolve`
+/// de dsh empieza por `~`, así que el canario contra dsh no habría encontrado
+/// nunca su binario. Habría fallado con «no se pudo lanzar», acusando al
+/// proveedor de un fallo de batuta.
+///
+/// Se prueba con `$PATH` porque prueba lo mismo que `~` sin depender de dónde
+/// esté instalado nada. Y de paso trae R11: la resolución del manifiesto
+/// comprueba el `sha256`, y la propia no lo miraba.
+#[test]
+fn el_canario_encuentra_un_binario_que_solo_esta_en_el_path() {
+    let base = std::env::temp_dir().join("batuta-canario-path");
+    let _ = fs::remove_dir_all(&base);
+
+    let en_path = fixture("eco_en_path.toml");
+    let recibo = run_canary(
+        &en_path,
+        &en_path.models()[0],
+        &peticion(&base, Duration::from_secs(10)),
+    )
+    .expect("`echo` está en el PATH de cualquier Unix");
+
+    assert!(recibo.verdict().is_green(), "{:?}", recibo.verdict());
+    assert_eq!(recibo.exit_code(), Some(0));
+
+    let _ = fs::remove_dir_all(&base);
+}

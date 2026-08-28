@@ -76,6 +76,18 @@ pub enum ExecError {
         /// Causa.
         source: std::io::Error,
     },
+    /// El binario del proveedor no se pudo resolver, o no es el que el
+    /// manifiesto fijó.
+    ///
+    /// La resolución es la **del manifiesto**, no una propia: entiende `~` y
+    /// `$PATH` y comprueba el `sha256` (R11). Un canario con búsqueda propia no
+    /// habría encontrado el binario de dsh, cuyo `resolve` empieza por `~`, y
+    /// habría acusado al proveedor de un fallo de batuta.
+    Executable {
+        /// Causa. En caja: un `ManifestError` lleva fichero, línea y columna, y
+        /// sin ella cada `Ok` de la corrida pagaría ese tamaño.
+        source: Box<batuta_manifest::ManifestError>,
+    },
     /// El proceso no se pudo lanzar.
     Spawn {
         /// El programa que se intentó.
@@ -110,6 +122,9 @@ impl fmt::Display for ExecError {
                 Ok(())
             }
             Self::Admission { source } => write!(f, "no se pudo admitir el encargo: {source}"),
+            Self::Executable { source } => {
+                write!(f, "no se pudo usar el binario del proveedor: {source}")
+            }
             Self::TokenSource { source } => write!(
                 f,
                 "no se pudo generar el token del canario leyendo `/dev/urandom`: {source}"
