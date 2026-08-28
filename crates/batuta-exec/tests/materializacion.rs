@@ -10,7 +10,11 @@ use batuta_manifest::ProviderManifest;
 
 fn dsh() -> ProviderManifest {
     let ruta = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../providers/dsh.toml");
-    ProviderManifest::load(&ruta).expect("dsh.toml debe cargar")
+    // `parse` y no `load`: `load` exige que el binario de dsh exista aquí, y en
+    // una máquina que sólo compila no está. Lo que estas pruebas miran —el argv,
+    // los ficheros de corrida, las sustituciones— es esquema, no máquina.
+    let texto = std::fs::read_to_string(&ruta).expect("dsh.toml se lee");
+    ProviderManifest::parse(&texto, &ruta).expect("dsh.toml debe interpretarse")
 }
 
 fn contexto(base: &Path, run_dir: PathBuf) -> RunContext {

@@ -19,11 +19,17 @@ use std::path::{Path, PathBuf};
 use batuta_contract::{CanaryExpectation, EnvVarName, ParserKind, PromptDelivery};
 use batuta_manifest::ProviderManifest;
 
+/// Un manifiesto real del repositorio, **interpretado sin preguntar a la máquina**.
+///
+/// `parse` y no `load`: `load` exige que el binario del proveedor exista aquí, lo
+/// cual es correcto en la máquina que va a delegar y falso en la que sólo
+/// compila. Ver la nota larga en `carga.rs`.
 fn cargar(nombre: &str) -> ProviderManifest {
     let ruta = Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("../../providers")
         .join(nombre);
-    ProviderManifest::load(&ruta).unwrap_or_else(|e| panic!("{nombre} debe cargar: {e}"))
+    let texto = std::fs::read_to_string(&ruta).unwrap_or_else(|e| panic!("{nombre}: {e}"));
+    ProviderManifest::parse(&texto, &ruta).unwrap_or_else(|e| panic!("{nombre}: {e}"))
 }
 
 #[test]
@@ -199,8 +205,9 @@ fn un_manifiesto_dice_de_donde_viene_y_con_que_bytes() {
 #[test]
 fn el_manifiesto_discrepante_carga_sin_quejarse_porque_su_error_no_es_de_forma() {
     let ruta = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../pruebas/discrepante/dsh.toml");
+    let texto = std::fs::read_to_string(&ruta).expect("se lee");
     let manifiesto =
-        ProviderManifest::load(&ruta).expect("tiene que cargar: su error no es de forma");
+        ProviderManifest::parse(&texto, &ruta).expect("tiene que cargar: su error no es de forma");
 
     assert_eq!(manifiesto.models().len(), 1);
     assert_eq!(

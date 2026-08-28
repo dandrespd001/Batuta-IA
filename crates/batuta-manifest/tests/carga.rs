@@ -12,6 +12,37 @@ fn providers() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../../providers")
 }
 
+/// Los manifiestos reales, **interpretados sin preguntar a la máquina**.
+///
+/// Se usa `parse` y no `load` a propósito, y no es un atajo: `load` llama a
+/// `verify_executable`, que exige que el binario del proveedor exista aquí. Eso
+/// es correcto en la máquina que va a delegar y es falso en la que sólo compila.
+/// En CI no hay ni `dsh` ni `abacusai`, así que estas pruebas fallaban con
+/// `ExecutableNotFound` — R1 funcionando como se diseñó, en el sitio equivocado.
+///
+/// La costura ya estaba: `parse` es pura y `verify_executable` es la que mira la
+/// máquina. Una prueba del **esquema** no tiene por qué preguntarle nada al
+/// disco; la resolución del ejecutable se prueba aparte, con ficheros que la
+/// propia prueba crea (`sha256_bordes.rs`).
+fn interpretar_providers() -> Vec<ProviderManifest> {
+    let mut rutas: Vec<PathBuf> = std::fs::read_dir(providers())
+        .expect("providers/ existe")
+        .filter_map(Result::ok)
+        .map(|e| e.path())
+        .filter(|p| p.extension().is_some_and(|e| e == "toml"))
+        .collect();
+    rutas.sort();
+
+    rutas
+        .iter()
+        .map(|ruta| {
+            let texto = std::fs::read_to_string(ruta).expect("se lee");
+            ProviderManifest::parse(&texto, ruta)
+                .unwrap_or_else(|e| panic!("{}: {e}", ruta.display()))
+        })
+        .collect()
+}
+
 /// Un manifiesto válido y mínimo, para mutarlo en cada prueba.
 fn base() -> String {
     r#"
@@ -70,7 +101,7 @@ fn el_manifiesto_base_carga() {
 /// fichero. Si estos dos cargan, Abacus funciona sin haber parcheado el núcleo.
 #[test]
 fn los_dos_manifiestos_del_repositorio_cargan() {
-    let cargados = ProviderManifest::load_dir(&providers()).expect("providers/ debe cargar");
+    let cargados = interpretar_providers();
 
     let ids: Vec<String> = cargados.iter().map(|m| m.id().to_string()).collect();
     assert_eq!(
@@ -85,7 +116,7 @@ fn los_dos_manifiestos_del_repositorio_cargan() {
 /// inspiró, sería un parche disfrazado de campo genérico.
 #[test]
 fn abacus_no_necesita_ficheros_de_corrida_y_dsh_necesita_dos() {
-    let cargados = ProviderManifest::load_dir(&providers()).expect("providers/ debe cargar");
+    let cargados = interpretar_providers();
 
     let abacus = cargados
         .iter()
@@ -103,7 +134,7 @@ fn abacus_no_necesita_ficheros_de_corrida_y_dsh_necesita_dos() {
 fn la_procedencia_distingue_lo_observado_de_lo_prometido() {
     use batuta_contract::ProvenanceSource;
 
-    let cargados = ProviderManifest::load_dir(&providers()).expect("providers/ debe cargar");
+    let cargados = interpretar_providers();
     let abacus = cargados
         .iter()
         .find(|m| m.id().as_str() == "abacus")
