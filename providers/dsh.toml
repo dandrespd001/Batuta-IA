@@ -157,10 +157,18 @@ route_model     = "deepseek-v4-flash"
 roles           = ["implementation", "boilerplate", "tests", "bulk_refactor"]
 max_sensitivity = "internal"
 
+# El nombre va en minúsculas porque lo dijo el proveedor, no porque se supiera.
+# El primer canario lo pidió como `DeepSeek-V4-Flash-Vision-Exp` y dsh contestó:
+# «The supported API model names are deepseek-v4-pro, deepseek-v4-flash, and
+# deepseek-v4-flash-vision-exp, but you passed DeepSeek-V4-Flash-Vision-Exp».
+# Es la lista completa, y salió de un canario rojo de dos segundos.
+#
+# `deepseek-v4-pro` existe y no está aquí: no lo pidió nadie. Entra el día que
+# alguien lo pida y su canario pase.
 [[models]]
 id              = "dsh-deepseek-v4-flash-vision-exp"
 route_provider  = "deepseek-official"
-route_model     = "DeepSeek-V4-Flash-Vision-Exp"
+route_model     = "deepseek-v4-flash-vision-exp"
 roles           = ["implementation"]
 max_sensitivity = "internal"
 
