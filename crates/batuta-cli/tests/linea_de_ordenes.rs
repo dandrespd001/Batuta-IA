@@ -182,3 +182,76 @@ fn panel_con_una_bandera_ajena_la_rechaza() {
         parse(&argumentos(&["panel", "--model", "algo"])).expect_err("--model no es de panel");
     assert!(error.to_string().contains("--provider"), "{error}");
 }
+
+/// T5 — `enable`/`disable` toman `<proveedor>/<modelo>` posicional, sin
+/// bandera: es la referencia entera, sin partir todavía.
+#[test]
+fn enable_toma_la_referencia_entera() {
+    let orden =
+        parse(&argumentos(&["enable", "dsh/dsh-deepseek-v4-flash"])).expect("orden correcta");
+    assert_eq!(
+        orden,
+        Command::Enable {
+            model_ref: "dsh/dsh-deepseek-v4-flash".to_string(),
+        }
+    );
+}
+
+#[test]
+fn disable_toma_la_referencia_entera() {
+    let orden = parse(&argumentos(&["disable", "abacus/abacus-routellm"])).expect("orden correcta");
+    assert_eq!(
+        orden,
+        Command::Disable {
+            model_ref: "abacus/abacus-routellm".to_string(),
+        }
+    );
+}
+
+/// `enable` sin ninguna referencia lo dice.
+#[test]
+fn enable_sin_referencia_lo_dice() {
+    let error = parse(&argumentos(&["enable"])).expect_err("falta la referencia");
+    assert!(error.to_string().contains("proveedor"), "{error}");
+}
+
+/// `enable` con algo de más después de la referencia lo rechaza: no elige
+/// en silencio cuál de los dos argumentos vale.
+#[test]
+fn enable_con_un_argumento_de_mas_lo_rechaza() {
+    let error =
+        parse(&argumentos(&["enable", "dsh/modelo", "sobra"])).expect_err("un argumento de más");
+    assert!(error.to_string().contains("sobra"), "{error}");
+}
+
+/// `effort` toma la referencia y el nivel, los dos posicionales.
+#[test]
+fn effort_toma_la_referencia_y_el_nivel() {
+    let orden = parse(&argumentos(&[
+        "effort",
+        "dsh/dsh-deepseek-v4-flash",
+        "high",
+    ]))
+    .expect("orden correcta");
+    assert_eq!(
+        orden,
+        Command::Effort {
+            model_ref: "dsh/dsh-deepseek-v4-flash".to_string(),
+            level: "high".to_string(),
+        }
+    );
+}
+
+/// `effort` sin nivel lo dice, distinto de sin referencia.
+#[test]
+fn effort_sin_nivel_lo_dice() {
+    let error =
+        parse(&argumentos(&["effort", "dsh/dsh-deepseek-v4-flash"])).expect_err("falta el nivel");
+    assert!(error.to_string().contains("nivel"), "{error}");
+}
+
+#[test]
+fn effort_sin_nada_pide_la_referencia_primero() {
+    let error = parse(&argumentos(&["effort"])).expect_err("falta todo");
+    assert!(error.to_string().contains("proveedor"), "{error}");
+}

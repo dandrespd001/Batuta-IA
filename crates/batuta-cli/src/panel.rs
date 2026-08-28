@@ -64,10 +64,7 @@ pub fn filas(
     layout: &Layout,
     provider_filter: Option<&str>,
 ) -> Result<Vec<Fila>, CliError> {
-    let manifiestos =
-        ProviderManifest::load_dir(providers_dir).map_err(|e| CliError::Manifest {
-            source: Box::new(e),
-        })?;
+    let manifiestos = crate::command::cargar(providers_dir)?;
 
     if let Some(filtro) = provider_filter
         && !manifiestos.iter().any(|m| m.id().as_str() == filtro)
@@ -102,8 +99,9 @@ pub fn filas(
 ///
 /// Un fichero ausente no es un error: es el estado antes de que nadie haya
 /// tocado `enable`, `disable` o `effort`. Un fichero **roto**, en cambio, sí
-/// lo es —no se sustituye en silencio por una política vacía.
-fn cargar_politica(layout: &Layout) -> Result<Politica, CliError> {
+/// lo es —no se sustituye en silencio por una política vacía. Compartida con
+/// `eleccion` (`enable`/`disable`/`effort` la leen igual antes de mutarla).
+pub(crate) fn cargar_politica(layout: &Layout) -> Result<Politica, CliError> {
     match Politica::cargar(&layout.politica()) {
         Ok(politica) => Ok(politica),
         Err(batuta_policy::PoliticaError::Read { ref source, .. })

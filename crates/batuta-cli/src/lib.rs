@@ -6,12 +6,14 @@
 
 pub mod args;
 pub mod command;
+pub mod eleccion;
 pub mod error;
 pub mod panel;
 pub mod paths;
 
 pub use args::{CANARY_FLAGS, CANARY_SWITCHES, COMMANDS, Command, PANEL_FLAGS, USAGE, parse};
 pub use command::{CanaryOutcome, canary, canary_all};
+pub use eleccion::{disable, effort, enable};
 pub use error::CliError;
 pub use panel::{Fila, filas, tabla};
 pub use paths::Layout;

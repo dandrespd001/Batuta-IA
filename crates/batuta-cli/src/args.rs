@@ -24,12 +24,30 @@ pub enum Command {
         /// Si se pide, sólo enseña este proveedor.
         provider: Option<String>,
     },
+    /// Activa un modelo en la política.
+    Enable {
+        /// `<proveedor>/<modelo>`, todavía sin partir: partirlo pide conocer
+        /// los manifiestos, y eso no es trabajo del parseo.
+        model_ref: String,
+    },
+    /// Lo apaga en la política, sin borrar nada.
+    Disable {
+        /// `<proveedor>/<modelo>`.
+        model_ref: String,
+    },
+    /// Fija el esfuerzo de razonamiento de un modelo.
+    Effort {
+        /// `<proveedor>/<modelo>`.
+        model_ref: String,
+        /// El nivel pedido, todavía sin validar contra `ReasoningEffort`.
+        level: String,
+    },
     /// La ayuda.
     Help,
 }
 
 /// Las órdenes que hay. El error de orden desconocida las enumera (R8).
-pub const COMMANDS: &[&str] = &["canary", "panel", "help"];
+pub const COMMANDS: &[&str] = &["canary", "panel", "enable", "disable", "effort", "help"];
 
 /// Las banderas de `canary` que llevan valor.
 pub const CANARY_FLAGS: &[&str] = &["--provider", "--model"];
@@ -51,6 +69,9 @@ USO
     batuta canary --provider <id> [--model <id>]
     batuta canary --provider <id> --all
     batuta panel [--provider <id>]
+    batuta enable  <proveedor>/<modelo>
+    batuta disable <proveedor>/<modelo>
+    batuta effort  <proveedor>/<modelo> <nivel>
     batuta help
 
 ÓRDENES
@@ -60,6 +81,13 @@ USO
     panel     La tabla que une declaración (providers/*.toml), evidencia (los
               recibos) y elección (la política): qué hay, qué funcionó y
               cuándo, y qué se quiere usar. Sólo lee: no lanza nada.
+    enable    Activa un modelo en la política. No lo canaria ni lo declara:
+              sólo dice que, si tiene evidencia, se puede enrutar.
+    disable   Lo apaga en la política. No borra ni el manifiesto ni sus
+              recibos: la evidencia sigue siendo cierta aunque no se use.
+    effort    Fija el nivel de esfuerzo de un modelo. Falla si su proveedor
+              no declara ningún mapa de esfuerzo, en vez de guardar un valor
+              que nunca se va a poder honrar.
 
 BANDERAS DE canary
     --provider <id>   El proveedor, tal como lo nombra su manifiesto.
@@ -72,14 +100,21 @@ BANDERAS DE canary
 BANDERAS DE panel
     --provider <id>   Enseña sólo este proveedor. Sin ella, todos.
 
+<proveedor>/<modelo>
+    El identificador de batuta, tal como aparece en la primera columna de
+    `batuta panel`: por ejemplo dsh/dsh-deepseek-v4-flash.
+
+<nivel>
+    Uno de: low, medium, high, xhigh, max.
+
 SALIDA de canary
     0    el canario salió verde (con --all: todos)
     1    salió rojo; el motivo se imprime (con --all: al menos uno)
     2    no llegó a haber veredicto; el motivo se imprime
 
-SALIDA de panel
-    0    siempre que se pudo listar; la tabla no tiene código de veredicto
-    2    no se pudo leer un manifiesto, la política o el almacén de recibos
+SALIDA de panel, enable, disable, effort
+    0    se pudo hacer lo que se pidió
+    2    no se pudo: el motivo se imprime
 ";
 
 /// Interpreta los argumentos, sin el nombre del programa.
@@ -98,6 +133,12 @@ pub fn parse(args: &[String]) -> Result<Command, CliError> {
         "help" | "--help" | "-h" => Ok(Command::Help),
         "canary" => parsear_canary(&args[1..]),
         "panel" => parsear_panel(&args[1..]),
+        "enable" => {
+            parsear_referencia(&args[1..], "enable").map(|model_ref| Command::Enable { model_ref })
+        }
+        "disable" => parsear_referencia(&args[1..], "disable")
+            .map(|model_ref| Command::Disable { model_ref }),
+        "effort" => parsear_effort(&args[1..]),
         otra => Err(CliError::UnknownCommand {
             given: otra.to_string(),
             available: COMMANDS.to_vec(),
@@ -198,4 +239,43 @@ fn parsear_panel(args: &[String]) -> Result<Command, CliError> {
     }
 
     Ok(Command::Panel { provider })
+}
+
+/// Un único posicional: `<proveedor>/<modelo>`, sin partir todavía. Partirlo y
+/// comprobar que existe es trabajo de `eleccion`, que sí conoce los
+/// manifiestos; aquí sólo se cuenta cuántos argumentos llegaron.
+fn parsear_referencia(args: &[String], comando: &'static str) -> Result<String, CliError> {
+    match args {
+        [referencia] => Ok(referencia.clone()),
+        [] => Err(CliError::MissingArgument {
+            command: comando,
+            argument: "<proveedor>/<modelo>",
+        }),
+        [_, sobra, ..] => Err(CliError::UnexpectedArgument {
+            command: comando,
+            given: sobra.clone(),
+        }),
+    }
+}
+
+/// `effort` lleva dos posicionales: la referencia y el nivel.
+fn parsear_effort(args: &[String]) -> Result<Command, CliError> {
+    match args {
+        [referencia, nivel] => Ok(Command::Effort {
+            model_ref: referencia.clone(),
+            level: nivel.clone(),
+        }),
+        [] => Err(CliError::MissingArgument {
+            command: "effort",
+            argument: "<proveedor>/<modelo>",
+        }),
+        [_referencia] => Err(CliError::MissingArgument {
+            command: "effort",
+            argument: "<nivel>",
+        }),
+        [_, _, sobra, ..] => Err(CliError::UnexpectedArgument {
+            command: "effort",
+            given: sobra.clone(),
+        }),
+    }
 }

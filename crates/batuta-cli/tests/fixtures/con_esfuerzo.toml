@@ -1,0 +1,48 @@
+# Proveedor de prueba que SÍ declara `[substitutions.reasoning_effort]`.
+# Existe para una sola cosa: que `effort` pueda fijar un nivel sin que la
+# medición real de dsh/abacus tenga nada que ver con el resultado de la
+# prueba -eco.toml y dos_modelos.toml no declaran el mapa a propósito, para
+# probar el otro lado (T5: "effort a un proveedor sin mapa lo dice").
+schema_version = 1
+id             = "con-esfuerzo"
+kind           = "cli"
+
+[executable]
+program       = "/bin/echo"
+version_pin   = "coreutils"
+version_probe = ["--version"]
+resolve       = ["/bin/echo"]
+
+[invoke]
+argv    = ["{prompt}"]
+workdir = "worktree"
+prompt  = { via = "argv" }
+
+[env]
+allow = ["HOME", "PATH"]
+
+[auth]
+method = "oauth_cli"
+
+[response]
+parser = "plain_text"
+
+[provenance]
+source = "declared"
+
+[substitutions.reasoning_effort]
+low    = "low"
+medium = "medium"
+high   = "high"
+xhigh  = "xhigh"
+max    = "max"
+
+[[models]]
+id              = "con-esfuerzo-modelo"
+route_model     = "eco"
+roles           = ["implementation"]
+max_sensitivity = "internal"
+
+[canary]
+prompt = "Responde exactamente con: {token}"
+expect = "token_echo"

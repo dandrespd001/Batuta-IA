@@ -87,14 +87,14 @@ pub fn canary_all(
 ///
 /// R7: nunca se cachean. Un directorio con un manifiesto roto falla aquí, antes
 /// de tocar nada (R1).
-fn cargar(providers_dir: &Path) -> Result<Vec<ProviderManifest>, CliError> {
+pub(crate) fn cargar(providers_dir: &Path) -> Result<Vec<ProviderManifest>, CliError> {
     ProviderManifest::load_dir(providers_dir).map_err(|e| CliError::Manifest {
         source: Box::new(e),
     })
 }
 
 /// El manifiesto de un proveedor, o un error que **enumera los que sí hay** (R8).
-fn hallar<'a>(
+pub(crate) fn hallar<'a>(
     manifiestos: &'a [ProviderManifest],
     provider: &str,
 ) -> Result<&'a ProviderManifest, CliError> {

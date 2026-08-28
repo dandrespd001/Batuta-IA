@@ -79,6 +79,46 @@ pub enum CliError {
         /// Los suyos.
         available: Vec<String>,
     },
+    /// Un argumento posicional obligatorio no vino.
+    ///
+    /// Distinto de `MissingFlag`: `enable`/`disable`/`effort` no llevan
+    /// banderas, llevan posiciones, y una posición ausente merece su propio
+    /// nombre en vez de fingir que era una bandera que faltó.
+    MissingArgument {
+        /// La orden.
+        command: &'static str,
+        /// Qué faltaba, en prosa: `<proveedor>/<modelo>` o `<nivel>`.
+        argument: &'static str,
+    },
+    /// Sobró un argumento posicional.
+    ///
+    /// No se ignora ni se resuelve por posición: un argumento de más es tan
+    /// ambiguo como una bandera que se contradice con otra, y la reacción es
+    /// la misma —parar y decirlo, no adivinar cuál de los dos vale.
+    UnexpectedArgument {
+        /// La orden.
+        command: &'static str,
+        /// Lo que sobraba.
+        given: String,
+    },
+    /// `<proveedor>/<modelo>` sin la barra.
+    MalformedModelRef {
+        /// Lo que se escribió.
+        given: String,
+    },
+    /// El nivel de `effort` no es ninguno de los que admite `ReasoningEffort`.
+    InvalidReasoningEffort {
+        /// Causa: ya enumera los válidos (R8), lo hereda del vocabulario.
+        source: batuta_contract::VocabularyError,
+    },
+    /// El proveedor de ese modelo no declara ningún mapa de esfuerzo.
+    ///
+    /// No se guarda un nivel que nunca se va a poder honrar: `effort` falla
+    /// aquí en vez de dejar una política con una promesa vacía.
+    EffortUnsupported {
+        /// El proveedor.
+        provider: String,
+    },
     /// Un manifiesto del directorio no se pudo cargar.
     ///
     /// Un manifiesto irresoluble falla **al cargar**, no a mitad de una corrida
@@ -164,6 +204,21 @@ impl fmt::Display for CliError {
                 "`{provider}` no declara ningún modelo `{asked}`; los suyos: {}",
                 available.join(", ")
             ),
+            Self::MissingArgument { command, argument } => {
+                write!(f, "`{command}` necesita {argument} y no vino")
+            }
+            Self::UnexpectedArgument { command, given } => {
+                write!(f, "`{command}` no esperaba `{given}`: sobra")
+            }
+            Self::MalformedModelRef { given } => write!(
+                f,
+                "`{given}` no tiene la forma `<proveedor>/<modelo>` (falta la barra)"
+            ),
+            Self::InvalidReasoningEffort { source } => write!(f, "{source}"),
+            Self::EffortUnsupported { provider } => write!(
+                f,
+                "`{provider}` no declara ningún mapa de esfuerzo: pedirle un nivel no se puede honrar"
+            ),
             Self::Manifest { source } => write!(f, "{source}"),
             Self::Exec { source } => write!(f, "{source}"),
             Self::Policy { source } => write!(f, "{source}"),
@@ -176,6 +231,7 @@ impl fmt::Display for CliError {
 impl std::error::Error for CliError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
+            Self::InvalidReasoningEffort { source } => Some(source),
             Self::Manifest { source } => Some(source),
             Self::Exec { source } => Some(source),
             Self::Policy { source } => Some(source),
