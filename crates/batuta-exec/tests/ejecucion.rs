@@ -59,7 +59,7 @@ fn al_hijo_solo_le_llega_lo_permitido() {
 
     let salida = run(
         &programa(&entorno),
-        &[],
+        entorno.invoke().argv(),
         &build_env(entorno.env()),
         Path::new("/tmp"),
         Duration::from_secs(10),
@@ -112,7 +112,7 @@ fn la_salida_declara_nombres_de_entorno_y_ningun_valor() {
     let entorno = fixture("entorno.toml");
     let salida = run(
         &programa(&entorno),
-        &[],
+        entorno.invoke().argv(),
         &build_env(entorno.env()),
         Path::new("/tmp"),
         Duration::from_secs(10),

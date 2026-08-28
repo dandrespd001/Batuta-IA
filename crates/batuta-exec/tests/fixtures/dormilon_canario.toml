@@ -15,7 +15,11 @@ version_probe = ["--version"]
 resolve       = ["/bin/sh"]
 
 [invoke]
-argv    = ["-c", "sleep 62.5 & sleep 62.5 & wait"]
+# El `{prompt}` va al final y `sh` lo recoge como `$0`, donde no molesta. Tiene
+# que estar: la carga exige que un manifiesto que dice entregar el prompt por
+# `argv` lo emita de verdad, y un fixture no es excusa para declarar algo que no
+# se cumple.
+argv    = ["-c", "sleep 62.5 & sleep 62.5 & wait", "{prompt}"]
 workdir = "worktree"
 prompt  = { via = "argv" }
 

@@ -7,14 +7,19 @@ schema_version = 1
 id             = "entorno"
 kind           = "cli"
 
+# Se invoca `env` a traves de `sh` y no directamente. El motivo no es de estilo:
+# con `/usr/bin/env` el `argv` tenia que ir VACIO, y un manifiesto que declara
+# entregar el prompt por `argv` y no lo emite es irresoluble —la carga lo
+# rechaza desde que existe `PromptNeverDelivered`—. Con `sh -c` el manifiesto
+# dice la verdad y el hijo sigue imprimiendo el entorno que recibio.
 [executable]
-program       = "/usr/bin/env"
-version_pin   = "coreutils"
+program       = "/bin/sh"
+version_pin   = "posix"
 version_probe = ["--version"]
-resolve       = ["/usr/bin/env"]
+resolve       = ["/bin/sh"]
 
 [invoke]
-argv    = []
+argv    = ["-c", "exec env", "{prompt}"]
 workdir = "worktree"
 prompt  = { via = "argv" }
 
