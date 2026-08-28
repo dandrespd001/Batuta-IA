@@ -1,3 +1,4 @@
+// generado: deepseek-v4-flash - revisado: Arquitecto
 //! Por qué una corrida no se pudo ni intentar.
 //!
 //! Ojo con la distinción, porque es la que separa este error del veredicto del
@@ -50,9 +51,49 @@ pub enum ExecError {
     },
 }
 
+/// El `Display` es un `match` lineal, una variante por mensaje, redactado desde
+/// los doc-comments de cada variante: es lo que llega a quien lee un recibo en
+/// rojo, y no hay test que lo fije todavía salvo el de `UnknownPlaceholder`,
+/// que exige que aparezca la llave ofensiva.
 impl fmt::Display for ExecError {
-    fn fmt(&self, _f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        todo!("los mensajes los fijan los tests de este crate")
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::UnknownPlaceholder {
+                field,
+                placeholder,
+                expected,
+            } => {
+                write!(
+                    f,
+                    "llave de sustitución desconocida `{{{placeholder}}}` en `{field}`; admitidas: "
+                )?;
+                for (indice, admitida) in expected.iter().enumerate() {
+                    if indice > 0 {
+                        f.write_str(", ")?;
+                    }
+                    write!(f, "{{{admitida}}}")?;
+                }
+                Ok(())
+            }
+            Self::RuntimeFileInsideWorktree { path, worktree } => write!(
+                f,
+                "el fichero de corrida `{}` caería dentro del worktree `{}`; se rechaza antes de escribir",
+                path.display(),
+                worktree.display()
+            ),
+            Self::Materialize { path, source } => write!(
+                f,
+                "no se pudo escribir el fichero de corrida `{}`: {source}",
+                path.display()
+            ),
+            Self::Spawn { program, source } => {
+                write!(
+                    f,
+                    "no se pudo lanzar el programa `{}`: {source}",
+                    program.display()
+                )
+            }
+        }
     }
 }
 
