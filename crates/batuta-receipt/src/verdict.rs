@@ -1,3 +1,4 @@
+// generado: deepseek-v4-flash - revisado: Arquitecto
 //! El veredicto de una corrida, y **por qué**.
 //!
 //! Un veredicto sin motivo nombrado es la mitad del fallo que R4 paga: el
@@ -11,8 +12,10 @@
 //! veredicto lo produce batuta y no lo parsea de nadie: nunca hay que rechazar
 //! un veredicto ajeno.
 
+use serde::Serialize;
+
 /// Qué concluyó batuta sobre una corrida.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub enum Verdict {
     /// La corrida hizo lo que decía, y consta.
     Green,
@@ -24,7 +27,7 @@ pub enum Verdict {
 ///
 /// Son los cinco sitios donde una corrida puede fallar, más los dos que sólo se
 /// ven después. Cada uno tiene mensaje propio: «falló» no es un diagnóstico.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub enum RedReason {
     /// Ninguna ruta de `resolve` dio un ejecutable. Es R1 llegando tarde.
     ExecutableUnresolved,
@@ -99,7 +102,39 @@ impl Verdict {
 }
 
 impl core::fmt::Display for RedReason {
-    fn fmt(&self, _f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        todo!("cada motivo con su mensaje; los fija tests/recibo.rs")
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            Self::ExecutableUnresolved => f.write_str("no se pudo resolver el ejecutable"),
+            Self::DigestMismatch { expected, found } => write!(
+                f,
+                "el binario no es el del manifiesto: se esperaba {expected}, había {found}"
+            ),
+            Self::ProcessFailed {
+                exit_code: Some(code),
+            } => write!(f, "el proceso falló con código {code}"),
+            Self::ProcessFailed { exit_code: None } => {
+                f.write_str("el proceso fue matado por una señal")
+            }
+            Self::TokenMissing => f.write_str("el canario no devolvió su token"),
+            Self::ProvenanceUnreadable { detail } => {
+                write!(f, "no se pudo leer la procedencia: {detail}")
+            }
+            Self::ProvenanceMismatch {
+                requested,
+                observed,
+            } => {
+                write!(f, "corrió {observed}, y se había pedido {requested}")
+            }
+            Self::UndeclaredToolUse { tools } => write!(
+                f,
+                "se usaron herramientas no declaradas: {}",
+                tools.join(", ")
+            ),
+            Self::ScopeViolation { paths } => write!(
+                f,
+                "el diff toca rutas fuera de la allowlist: {}",
+                paths.join(", ")
+            ),
+        }
     }
 }
