@@ -5,6 +5,7 @@
 
 use std::path::{Path, PathBuf};
 
+use batuta_contract::ReasoningEffort;
 use batuta_manifest::{ManifestError, ProviderManifest};
 
 /// El directorio `providers/` del propio repositorio.
@@ -284,6 +285,97 @@ fn una_llave_declarada_se_admite_donde_la_incorporada_no_llegaba() {
     assert_eq!(
         cargado.substitutions().declared_keys(),
         vec!["sandbox_mode"]
+    );
+}
+
+/// T1 (`docs/FASE5_PANEL.md`) — el mapa de esfuerzo es igual de exigente que
+/// cualquier otra sustitución: cubre `ReasoningEffort::ALL` entero o no carga.
+#[test]
+fn un_mapa_de_esfuerzo_incompleto_no_carga() {
+    let roto = format!(
+        "{}\n[substitutions.reasoning_effort]\nlow = \"low\"\nmedium = \"high\"\nhigh = \"high\"\nmax = \"max\"\n",
+        base()
+    );
+    let error = error_de(&roto);
+
+    match &error {
+        ManifestError::SubstitutionIncomplete {
+            key,
+            vocabulary,
+            missing,
+            ..
+        } => {
+            assert_eq!(key, "reasoning_effort");
+            assert_eq!(*vocabulary, "reasoning_effort");
+            assert_eq!(missing, &["xhigh"]);
+        }
+        otro => panic!("se esperaba SubstitutionIncomplete: {otro:?}"),
+    }
+}
+
+/// T1 — sin el mapa declarado, `{reasoning_effort}` no es una llave admitida:
+/// el manifiesto falla al cargar (R1), no al pedir un esfuerzo en una corrida
+/// real.
+#[test]
+fn sin_el_mapa_de_esfuerzo_la_llave_no_se_admite_al_cargar() {
+    let roto = base().replace("{route_model}", "{reasoning_effort}");
+    let error = error_de(&roto);
+
+    match &error {
+        ManifestError::UnknownPlaceholder {
+            placeholder,
+            expected,
+            ..
+        } => {
+            assert_eq!(placeholder, "reasoning_effort");
+            assert!(
+                !expected.iter().any(|p| p == "reasoning_effort"),
+                "{expected:?}"
+            );
+        }
+        otro => panic!("se esperaba UnknownPlaceholder: {otro:?}"),
+    }
+}
+
+/// T1 — un proveedor que no declara el mapa no tiene con qué contestar: pedirle
+/// un nivel da `None`, nunca un valor supuesto.
+#[test]
+fn un_manifiesto_sin_mapa_de_esfuerzo_no_tiene_con_que_resolverlo() {
+    let cargado =
+        ProviderManifest::parse(&base(), Path::new("prueba.toml")).expect("el base es válido");
+
+    assert!(!cargado.substitutions().declares_reasoning_effort());
+    assert_eq!(
+        cargado
+            .substitutions()
+            .resolve_reasoning_effort(ReasoningEffort::High),
+        None
+    );
+}
+
+/// T1 — con el mapa completo, `{reasoning_effort}` se admite al cargar y se
+/// resuelve al nombre que el proveedor entiende.
+#[test]
+fn con_el_mapa_completo_la_llave_se_admite_y_se_resuelve() {
+    let bueno = format!(
+        "{}\n[substitutions.reasoning_effort]\nlow = \"low\"\nmedium = \"high\"\nhigh = \"high\"\nxhigh = \"max\"\nmax = \"max\"\n",
+        base().replace("{route_model}", "{reasoning_effort}")
+    );
+    let cargado = ProviderManifest::parse(&bueno, Path::new("prueba.toml"))
+        .expect("el mapa completo es válido");
+
+    assert!(cargado.substitutions().declares_reasoning_effort());
+    assert_eq!(
+        cargado
+            .substitutions()
+            .resolve_reasoning_effort(ReasoningEffort::High),
+        Some("high")
+    );
+    assert_eq!(
+        cargado
+            .substitutions()
+            .resolve_reasoning_effort(ReasoningEffort::Xhigh),
+        Some("max")
     );
 }
 

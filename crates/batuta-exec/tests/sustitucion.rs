@@ -2,7 +2,7 @@
 
 use std::path::{Path, PathBuf};
 
-use batuta_contract::WriteMode;
+use batuta_contract::{ReasoningEffort, WriteMode};
 use batuta_exec::{ExecError, RunContext, resolve, resolve_argv};
 use batuta_manifest::ProviderManifest;
 
@@ -25,6 +25,7 @@ fn contexto(write_mode: WriteMode) -> RunContext {
         prompt: "Responde exactamente con: T-123".to_string(),
         token: "T-123".to_string(),
         write_mode,
+        reasoning_effort: None,
     }
 }
 
@@ -150,5 +151,67 @@ fn una_incorporada_opcional_sin_valor_para_en_vez_de_vaciarse() {
             assert_eq!(placeholder, "route_provider");
         }
         otro => panic!("se esperaba MissingBuiltin: {otro:?}"),
+    }
+}
+
+/// T1 (`docs/FASE5_PANEL.md`) — `{reasoning_effort}` es la segunda incorporada
+/// opcional: si el encargo no trae un nivel, falla igual que `route_provider`,
+/// no se sustituye por vacío.
+#[test]
+fn sin_esfuerzo_en_el_encargo_la_llave_de_esfuerzo_falla() {
+    let error = resolve(
+        "{reasoning_effort}",
+        "prueba",
+        &dsh(),
+        &contexto(WriteMode::ReadOnly),
+    )
+    .expect_err("el encargo no trae esfuerzo");
+
+    match &error {
+        ExecError::MissingBuiltin { field, placeholder } => {
+            assert_eq!(field, "prueba");
+            assert_eq!(placeholder, "reasoning_effort");
+        }
+        otro => panic!("se esperaba MissingBuiltin: {otro:?}"),
+    }
+}
+
+/// T1 — con un nivel en el encargo, la llave se resuelve al nombre que dsh
+/// entiende: medido, el adaptador de `DeepSeek` sólo acepta `off`/`low`/`high`/
+/// `max`. `xhigh` de batuta colapsa hacia ABAJO, a `high`, nunca al techo: `max`
+/// está definido como «todo lo que el proveedor permita», y subir en vez de
+/// bajar tiene detrás un fallo real (memoria: leccion-presupuesto-razonamiento).
+#[test]
+fn con_esfuerzo_en_el_encargo_la_llave_se_resuelve_al_valor_del_proveedor() {
+    let contexto = RunContext {
+        reasoning_effort: Some(ReasoningEffort::Xhigh),
+        ..contexto(WriteMode::ReadOnly)
+    };
+
+    let valor = resolve("{reasoning_effort}", "prueba", &dsh(), &contexto).expect("declarado");
+    assert_eq!(valor, "high");
+}
+
+/// T1 — cierra el hueco que la propia carga no puede cerrar: nada en el
+/// manifiesto usa `{reasoning_effort}` todavía, así que `comprobar_placeholders`
+/// nunca mira los VALORES de este mapa al cargar (sólo que estén completos). Sin
+/// esta prueba, un valor inventado -`xhigh = "maxx"`, por ejemplo- pasaría los 27
+/// tests del esquema en verde y sólo fallaría el día que T5 lo dispare en una
+/// corrida real, con un `UNSUPPORTED_REASONING_EFFORT` de dsh. Es exactamente la
+/// clase de fallo que `leccion-precondicion-inerte` ya cobró tres veces.
+#[test]
+fn el_mapa_de_esfuerzo_de_dsh_usa_solo_literales_medidos() {
+    let manifiesto = dsh();
+    let medidos = ["off", "low", "high", "max"];
+
+    for nivel in ReasoningEffort::ALL {
+        let Some(valor) = manifiesto.substitutions().resolve_reasoning_effort(*nivel) else {
+            continue;
+        };
+        assert!(
+            medidos.contains(&valor),
+            "`{nivel}` resuelve a `{valor}`, que no es uno de los cuatro literales \
+             que el adaptador de DeepSeek acepta: {medidos:?}"
+        );
     }
 }

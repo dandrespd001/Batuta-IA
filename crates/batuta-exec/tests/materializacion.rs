@@ -27,6 +27,7 @@ fn contexto(base: &Path, run_dir: PathBuf) -> RunContext {
         prompt: "Responde exactamente con: T-123".to_string(),
         token: "T-123".to_string(),
         write_mode: WriteMode::ValidatedPatch,
+        reasoning_effort: None,
     }
 }
 

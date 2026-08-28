@@ -8,7 +8,7 @@
 
 use std::path::PathBuf;
 
-use batuta_contract::{ModelId, RouteModel, WriteMode};
+use batuta_contract::{ModelId, ReasoningEffort, RouteModel, WriteMode};
 use batuta_manifest::ProviderManifest;
 
 use crate::error::ExecError;
@@ -32,6 +32,10 @@ pub struct RunContext {
     pub token: String,
     /// Lo que el encargo puede hacer, que decide las sustituciones declaradas.
     pub write_mode: WriteMode,
+    /// El nivel de esfuerzo pedido, si el encargo trae uno. `None` en los
+    /// canarios de hoy (T1 no los conecta todavía: eso es T5, cuando la
+    /// política tenga un nivel real que pasar).
+    pub reasoning_effort: Option<ReasoningEffort>,
 }
 
 /// El valor de una llave, incorporada o declarada.
@@ -65,6 +69,30 @@ fn valor_para(
         "run_dir" => Ok(context.run_dir.to_string_lossy().into_owned()),
         "prompt" => Ok(context.prompt.clone()),
         "token" => Ok(context.token.clone()),
+        // La segunda incorporada opcional. Sin nivel en el encargo, rellenar con
+        // vacío sería el mismo fallo que `route_provider` ya evitaba: un vacío
+        // que llega al `argv` de un proceso real sin que nadie lo note.
+        "reasoning_effort" => {
+            let esfuerzo = context
+                .reasoning_effort
+                .ok_or_else(|| ExecError::MissingBuiltin {
+                    field: field.to_string(),
+                    placeholder: "reasoning_effort".to_string(),
+                })?;
+            // Si `{reasoning_effort}` aparece en alguna plantilla, la carga ya
+            // exigió que el manifiesto declarara el mapa completo
+            // (`comprobar_placeholders`, R1): este `None` no puede darse por un
+            // proveedor sin mapa, sólo por un nivel no cubierto, y el mapa cubre
+            // `ReasoningEffort::ALL` entero.
+            match manifest.substitutions().resolve_reasoning_effort(esfuerzo) {
+                Some(valor) => Ok(valor.to_string()),
+                None => Err(ExecError::UnknownPlaceholder {
+                    field: field.to_string(),
+                    placeholder: "reasoning_effort".to_string(),
+                    expected: manifest.substitutions().allowed_placeholders(),
+                }),
+            }
+        }
         otra => match manifest.substitutions().resolve(otra, context.write_mode) {
             Some(valor) => Ok(valor.to_string()),
             None => Err(ExecError::UnknownPlaceholder {

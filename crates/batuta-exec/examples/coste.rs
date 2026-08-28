@@ -63,6 +63,7 @@ fn main() {
         prompt: "Responde exactamente con: batuta-canario-0123456789abcdef".to_string(),
         token: "batuta-canario-0123456789abcdef".to_string(),
         write_mode: WriteMode::ReadOnly,
+        reasoning_effort: None,
     };
 
     medir("resolve_argv de dsh", "5 argumentos", 2000, || {

@@ -16,8 +16,8 @@ use std::path::{Path, PathBuf};
 
 use batuta_contract::{
     AuthMethod, CanaryExpectation, DocumentFormat, EnvVarName, ModelId, ParserKind, PromptDelivery,
-    ProvenanceSource, ProviderId, ProviderKind, Role, RouteModel, SchemaVersion, Sensitivity,
-    WriteMode,
+    ProvenanceSource, ProviderId, ProviderKind, ReasoningEffort, Role, RouteModel, SchemaVersion,
+    Sensitivity, WriteMode,
 };
 use serde::Deserialize;
 use toml::Spanned;
@@ -734,13 +734,22 @@ fn validar_canary(
 /// Sustituciones: cada llave tiene que cubrir el vocabulario entero. Añadir un
 /// `write_mode` sin contemplarlo en todos los mapas es error de carga, nunca un
 /// valor por defecto elegido en silencio.
+///
+/// `reasoning_effort` es un nombre reservado: no deriva de `write_mode` como el
+/// resto, así que se separa antes del bucle genérico y se valida contra su
+/// propio vocabulario (T1 de `docs/FASE5_PANEL.md`).
 fn validar_sustituciones(
     source: &str,
     origin: &Path,
     substitutions: &BTreeMap<String, Spanned<BTreeMap<String, String>>>,
 ) -> Result<Substitutions, ManifestError> {
     let mut map = BTreeMap::new();
+    let mut reasoning_effort = None;
     for (key, spanned) in substitutions {
+        if key == "reasoning_effort" {
+            reasoning_effort = Some(validar_esfuerzo(source, origin, key, spanned)?);
+            continue;
+        }
         let mut inner = BTreeMap::new();
         for (mode_token, value) in spanned.get_ref() {
             let write_mode: WriteMode =
@@ -768,7 +777,42 @@ fn validar_sustituciones(
         }
         map.insert(key.clone(), inner);
     }
-    Ok(Substitutions::new(map))
+    Ok(Substitutions::new(map, reasoning_effort))
+}
+
+/// `[substitutions.reasoning_effort]`: igual de exigente que el resto —cubre
+/// `ReasoningEffort::ALL` entero o no carga— pero keyed por `ReasoningEffort` en
+/// vez de `WriteMode`, porque dsh y abacus no toman el esfuerzo por el mismo
+/// canal que el modo de escritura.
+fn validar_esfuerzo(
+    source: &str,
+    origin: &Path,
+    key: &str,
+    spanned: &Spanned<BTreeMap<String, String>>,
+) -> Result<BTreeMap<ReasoningEffort, String>, ManifestError> {
+    let mut inner = BTreeMap::new();
+    for (token, value) in spanned.get_ref() {
+        let effort: ReasoningEffort = token.parse().map_err(|error| ManifestError::Vocabulary {
+            at: location_at(source, spanned.span(), origin),
+            field: format!("substitutions.{key}.{token}"),
+            source: error,
+        })?;
+        inner.insert(effort, value.clone());
+    }
+    let missing: Vec<&'static str> = ReasoningEffort::ALL
+        .iter()
+        .filter(|effort| !inner.contains_key(effort))
+        .map(|effort| effort.as_str())
+        .collect();
+    if !missing.is_empty() {
+        return Err(ManifestError::SubstitutionIncomplete {
+            at: location_at(source, spanned.span(), origin),
+            key: key.to_string(),
+            vocabulary: ReasoningEffort::NAME,
+            missing,
+        });
+    }
+    Ok(inner)
 }
 
 /// Modelos: identificador y ruta válidos, sin duplicados, roles y techo de

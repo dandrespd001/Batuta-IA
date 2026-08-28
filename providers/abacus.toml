@@ -63,6 +63,14 @@ prompt  = { via = "argv" }
 allow = ["HOME", "PATH", "TERM", "LANG", "USER"]
 set   = { ABACUSAI_NO_TELEMETRY = "1" }
 
+# Sin `[substitutions.reasoning_effort]` a propósito (T1 de docs/FASE5_PANEL.md).
+# MEDIDO: `abacusai --help` de la 2.6.11 no ofrece ninguna bandera de esfuerzo,
+# razonamiento ni "thinking" -ni corta ni larga-. Existe `--settings <fichero>`
+# ("JSON settings file to merge into the config"), pero su esquema no está
+# documentado y forzar una llave ahí sería adivinar, no medir (R2). Sin mapa,
+# `{reasoning_effort}` no es una llave admitida para este proveedor: usarla
+# fallaría al cargar, no en una corrida real.
+
 [response]
 parser = "plain_text"
 

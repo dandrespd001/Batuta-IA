@@ -120,6 +120,9 @@ pub fn run_canary(
         prompt: String::new(),
         token: token.clone(),
         write_mode: WriteMode::ReadOnly,
+        // Un canario es una comprobación barata (`ReasoningEffort::Low` existe
+        // para esto), no un encargo real: T1 no le fija ningún nivel todavía.
+        reasoning_effort: None,
     };
     contexto.prompt = resolve(
         manifest.canary().prompt(),

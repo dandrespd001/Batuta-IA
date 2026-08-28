@@ -74,6 +74,39 @@ read_only       = "batuta-lectura"
 validated_patch = "batuta-escritura"
 validated_apply = "batuta-escritura"
 
+# `reasoning_effort` es reservado y keyed por ReasoningEffort, no por WriteMode
+# (T1 de docs/FASE5_PANEL.md): dsh no toma el esfuerzo por el modo de escritura.
+#
+# MEDIDO en @deepseek-ai/dsh-llm-deepseek/lib/index.js: el validador del
+# adaptador acepta EXACTAMENTE cuatro literales -"off", "low", "high", "max"- y
+# lanza `DeepSeek does not support reasoning effort "${effort}"` con cualquier
+# otro. Ni "medium" ni "xhigh" existen para dsh; batuta sí los tiene, así que el
+# mapa los colapsa HACIA ABAJO: "medium" baja a "low" y "xhigh" baja a "high" -
+# nunca suben. `Max` está definido en batuta-contract como «todo lo que el
+# proveedor permita»: si "xhigh" subiera a "max" pediría exactamente eso, que
+# contradice ser el nivel de DEBAJO del techo. Y subir en vez de bajar tiene un
+# fallo real detrás: gastar el cupo entero pensando devuelve una respuesta
+# vacía (memoria: leccion-presupuesto-razonamiento). Bajar sólo arriesga menos
+# meticulosidad, nunca ese fallo; "low" ya deja `thinking: enabled` en el
+# adaptador -sólo "off" lo apaga-, así que "medium" no cae a "sin pensar".
+# El propio `settings.yaml` del anfitrión ya usaba "max"; agent.cordis.yml
+# (dsh-agent-presets/cordis) usaba "high": los dos valores reales, confirmados.
+#
+# Declarado y medido, todavía SIN CONECTAR a ninguna plantilla: nada en este
+# manifiesto usa `{reasoning_effort}` aún. Se conecta cuando T5 (el comando
+# `effort`) tenga un nivel real de la política que pasarle a una corrida.
+# Como nada lo referencia todavía, `comprobar_placeholders` nunca mira estos
+# valores al cargar (R1 no llega solo): el test
+# `el_mapa_de_esfuerzo_de_dsh_usa_solo_literales_medidos` en
+# batuta-exec/tests/sustitucion.rs es el que impide que un valor inventado
+# aquí pase en verde hasta que T5 lo dispare en una corrida real.
+[substitutions.reasoning_effort]
+low    = "low"
+medium = "low"
+high   = "high"
+xhigh  = "high"
+max    = "max"
+
 # ── Fichero de corrida 1: la capa de composición ─────────────────────────────
 # Sólo redirige y fija. Nótese que un parche **reemplaza la config entera** de la
 # fila que toca (dsh-base/cordis.patch.yml, cabecera), así que cada fila se
