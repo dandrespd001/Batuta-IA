@@ -143,8 +143,9 @@ Por tanto, un canario verde de eco no prueba `write`, y uno verde de dsh no prue
 `web_research`. Tratarlo como si lo hiciera repetiría exactamente el fallo que paga R2.
 Antes de implementar `TaskSpec → Route` hay que cerrar este contrato con tareas acotadas:
 
-- [ ] **P4.1 (20–30 min):** añadir al recibo un conjunto explícito de capacidades
-      demostradas, vacío para el canario básico; ida y vuelta JSON y mensaje legible
+- [x] **P4.1 (20–30 min):** añadir al recibo un conjunto explícito de capacidades
+      demostradas (`3556763`), vacío para el canario básico; ida y vuelta JSON y lectura
+      compatible de recibos anteriores (campo ausente ⇒ conjunto vacío, nunca «todas»)
 - [ ] **P4.2 (20–30 min):** definir canarios de capacidad que ejerciten una capacidad real;
       ningún manifiesto puede declararla demostrada sin ese escenario
 - [ ] **P4.3 (20–30 min):** hacer que `ReceiptStore` consulte evidencia vigente por
