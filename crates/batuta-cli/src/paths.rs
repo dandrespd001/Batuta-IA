@@ -67,4 +67,10 @@ impl Layout {
     pub fn runs(&self) -> PathBuf {
         self.root.join("corridas")
     }
+
+    /// El fichero de elección (`batuta-policy`). Un fichero, no un
+    /// directorio: a diferencia de leases y recibos, sólo hay uno.
+    pub fn politica(&self) -> PathBuf {
+        self.root.join("politica.toml")
+    }
 }

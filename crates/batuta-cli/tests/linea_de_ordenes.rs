@@ -155,3 +155,30 @@ fn pedir_todos_y_uno_a_la_vez_no_se_resuelve_en_silencio() {
     assert!(mensaje.contains("--all"), "{mensaje}");
     assert!(mensaje.contains("--model"), "{mensaje}");
 }
+
+/// T4 (`docs/FASE5_PANEL.md`) — `panel` sin bandera enseña todo.
+#[test]
+fn panel_sin_bandera_no_filtra() {
+    let orden = parse(&argumentos(&["panel"])).expect("orden correcta");
+    assert_eq!(orden, Command::Panel { provider: None });
+}
+
+/// `--provider` filtra el panel a un solo proveedor.
+#[test]
+fn panel_con_provider_filtra() {
+    let orden = parse(&argumentos(&["panel", "--provider", "dsh"])).expect("orden correcta");
+    assert_eq!(
+        orden,
+        Command::Panel {
+            provider: Some("dsh".to_string()),
+        }
+    );
+}
+
+/// Una bandera que `panel` no admite se rechaza nombrando lo que sí (R8).
+#[test]
+fn panel_con_una_bandera_ajena_la_rechaza() {
+    let error =
+        parse(&argumentos(&["panel", "--model", "algo"])).expect_err("--model no es de panel");
+    assert!(error.to_string().contains("--provider"), "{error}");
+}

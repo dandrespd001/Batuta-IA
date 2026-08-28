@@ -1,0 +1,41 @@
+# Proveedor de prueba con un modelo que declara `observed_as` distinto de
+# `route_model`. Existe para una sola cosa: que `batuta panel` marque esa
+# fila con `⚠` sin necesitar ningún canario real -es un hecho del manifiesto,
+# no de una corrida.
+schema_version = 1
+id             = "alias"
+kind           = "cli"
+
+[executable]
+program       = "/bin/echo"
+version_pin   = "coreutils"
+version_probe = ["--version"]
+resolve       = ["/bin/echo"]
+
+[invoke]
+argv    = ["{prompt}"]
+workdir = "worktree"
+prompt  = { via = "argv" }
+
+[env]
+allow = ["HOME", "PATH"]
+
+[auth]
+method = "oauth_cli"
+
+[response]
+parser = "plain_text"
+
+[provenance]
+source = "declared"
+
+[[models]]
+id              = "alias-modelo"
+route_model     = "Eco Con Alias"
+observed_as     = "ECO_CON_ALIAS"
+roles           = ["implementation"]
+max_sensitivity = "internal"
+
+[canary]
+prompt = "Responde exactamente con: {token}"
+expect = "token_echo"

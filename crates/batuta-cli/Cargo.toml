@@ -22,6 +22,8 @@ batuta-contract = { path = "../batuta-contract" }
 batuta-manifest = { path = "../batuta-manifest" }
 batuta-receipt = { path = "../batuta-receipt" }
 batuta-exec = { path = "../batuta-exec" }
+batuta-policy = { path = "../batuta-policy" }
+batuta-store = { path = "../batuta-store" }
 serde_json = { workspace = true }
 
 [lints]

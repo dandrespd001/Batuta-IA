@@ -96,8 +96,12 @@ fn el_recibo_verde_del_modelo_y_manifiesto_correctos_se_encuentra() {
         .expect("se lee");
 
     match consulta.result {
-        LatestGreen::Fresh(encontrado) => {
-            assert_eq!(encontrado.model_requested(), "dsh-deepseek-v4-flash");
+        LatestGreen::Fresh { receipt, sealed_at } => {
+            assert_eq!(receipt.model_requested(), "dsh-deepseek-v4-flash");
+            assert!(
+                sealed_at <= SystemTime::now(),
+                "se selló en el pasado, no en el futuro"
+            );
         }
         otro => panic!("se esperaba Fresh: {otro:?}"),
     }
@@ -151,7 +155,7 @@ fn entre_varios_validos_se_elige_el_mas_reciente() {
         .expect("se lee");
 
     match consulta.result {
-        LatestGreen::Fresh(_) => {}
+        LatestGreen::Fresh { .. } => {}
         otro => panic!("se esperaba Fresh: {otro:?}"),
     }
 }
@@ -204,7 +208,7 @@ fn un_recibo_ilegible_no_se_confunde_con_uno_ausente() {
         )
         .expect("un fichero roto no aborta el escaneo entero");
 
-    assert!(matches!(consulta.result, LatestGreen::Fresh(_)));
+    assert!(matches!(consulta.result, LatestGreen::Fresh { .. }));
     assert_eq!(consulta.unreadable.len(), 1);
     assert_eq!(consulta.unreadable[0].path, roto);
 }

@@ -19,18 +19,26 @@ pub enum Command {
         /// Todos sus modelos, uno tras otro.
         all: bool,
     },
+    /// La tabla que une declaración, evidencia y elección.
+    Panel {
+        /// Si se pide, sólo enseña este proveedor.
+        provider: Option<String>,
+    },
     /// La ayuda.
     Help,
 }
 
 /// Las órdenes que hay. El error de orden desconocida las enumera (R8).
-pub const COMMANDS: &[&str] = &["canary", "help"];
+pub const COMMANDS: &[&str] = &["canary", "panel", "help"];
 
 /// Las banderas de `canary` que llevan valor.
 pub const CANARY_FLAGS: &[&str] = &["--provider", "--model"];
 
 /// Los interruptores de `canary`: van solos y no llevan valor.
 pub const CANARY_SWITCHES: &[&str] = &["--all"];
+
+/// Las banderas de `panel` que llevan valor.
+pub const PANEL_FLAGS: &[&str] = &["--provider"];
 
 /// La ayuda.
 ///
@@ -42,12 +50,16 @@ batuta — orquestador de delegación
 USO
     batuta canary --provider <id> [--model <id>]
     batuta canary --provider <id> --all
+    batuta panel [--provider <id>]
     batuta help
 
 ÓRDENES
     canary    Lanza el canario de un proveedor y deja su recibo en disco.
               Genera un token irrepetible, pide que lo devuelva, y comprueba
               que volvió ése. Nunca busca una subcadena en un juicio propio.
+    panel     La tabla que une declaración (providers/*.toml), evidencia (los
+              recibos) y elección (la política): qué hay, qué funcionó y
+              cuándo, y qué se quiere usar. Sólo lee: no lanza nada.
 
 BANDERAS DE canary
     --provider <id>   El proveedor, tal como lo nombra su manifiesto.
@@ -57,10 +69,17 @@ BANDERAS DE canary
                       detiene a los demás: el lote existe para saber cuáles
                       valen. Incompatible con --model.
 
-SALIDA
+BANDERAS DE panel
+    --provider <id>   Enseña sólo este proveedor. Sin ella, todos.
+
+SALIDA de canary
     0    el canario salió verde (con --all: todos)
     1    salió rojo; el motivo se imprime (con --all: al menos uno)
     2    no llegó a haber veredicto; el motivo se imprime
+
+SALIDA de panel
+    0    siempre que se pudo listar; la tabla no tiene código de veredicto
+    2    no se pudo leer un manifiesto, la política o el almacén de recibos
 ";
 
 /// Interpreta los argumentos, sin el nombre del programa.
@@ -78,6 +97,7 @@ pub fn parse(args: &[String]) -> Result<Command, CliError> {
     match primera.as_str() {
         "help" | "--help" | "-h" => Ok(Command::Help),
         "canary" => parsear_canary(&args[1..]),
+        "panel" => parsear_panel(&args[1..]),
         otra => Err(CliError::UnknownCommand {
             given: otra.to_string(),
             available: COMMANDS.to_vec(),
@@ -145,4 +165,37 @@ fn parsear_canary(args: &[String]) -> Result<Command, CliError> {
         model,
         all,
     })
+}
+
+/// Los argumentos de `panel`, después de la orden.
+///
+/// Más simple que `canary`: una sola bandera, opcional, y ningún interruptor.
+fn parsear_panel(args: &[String]) -> Result<Command, CliError> {
+    let mut provider: Option<String> = None;
+
+    let mut indice = 0;
+    while indice < args.len() {
+        let argumento = &args[indice];
+        if PANEL_FLAGS.contains(&argumento.as_str()) {
+            let Some(valor) = args.get(indice + 1) else {
+                return Err(CliError::MissingValue {
+                    flag: argumento.clone(),
+                });
+            };
+            if valor.starts_with("--") {
+                return Err(CliError::MissingValue {
+                    flag: argumento.clone(),
+                });
+            }
+            provider = Some(valor.clone());
+            indice += 2;
+        } else {
+            return Err(CliError::UnknownFlag {
+                given: argumento.clone(),
+                available: PANEL_FLAGS.to_vec(),
+            });
+        }
+    }
+
+    Ok(Command::Panel { provider })
 }

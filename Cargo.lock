@@ -9,7 +9,9 @@ dependencies = [
  "batuta-contract",
  "batuta-exec",
  "batuta-manifest",
+ "batuta-policy",
  "batuta-receipt",
+ "batuta-store",
  "serde_json",
 ]
 

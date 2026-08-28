@@ -37,10 +37,16 @@ pub struct Unreadable {
 pub enum LatestGreen {
     /// Hay un recibo verde, del `manifest_sha256` actual, dentro del TTL.
     ///
-    /// En caja: `Receipt` lleva el `argv`, el `stdout`/`stderr` íntegros y
+    /// `Receipt` va en caja: lleva el `argv`, el `stdout`/`stderr` íntegros y
     /// cada fichero materializado, así que es, con mucho, la variante más
     /// grande — sin caja, cada `LatestGreen::Absent` pagaría ese tamaño.
-    Fresh(Box<Receipt>),
+    Fresh {
+        /// El recibo.
+        receipt: Box<Receipt>,
+        /// Cuándo se selló —el `mtime` de su fichero—, para quien necesite
+        /// mostrar «hace cuánto» sin volver a tocar el disco.
+        sealed_at: SystemTime,
+    },
     /// Hubo un recibo verde y vigente en `manifest_sha256`, pero ya caducó.
     /// `at` es el instante en que dejó de ser fresco (`mtime` del recibo, más
     /// el TTL con el que se consultó) — la respuesta directa a «¿cuándo
@@ -153,7 +159,10 @@ impl ReceiptStore {
                 if SystemTime::now() >= expira {
                     LatestGreen::Expired { at: expira }
                 } else {
-                    LatestGreen::Fresh(Box::new(receipt))
+                    LatestGreen::Fresh {
+                        receipt: Box::new(receipt),
+                        sealed_at: mtime,
+                    }
                 }
             }
         };

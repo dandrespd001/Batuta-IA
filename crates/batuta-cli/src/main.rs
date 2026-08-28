@@ -12,7 +12,7 @@
 
 use std::process::ExitCode;
 
-use batuta_cli::{CanaryOutcome, Command, Layout, USAGE, canary, canary_all, parse};
+use batuta_cli::{CanaryOutcome, Command, Layout, USAGE, canary, canary_all, filas, parse, tabla};
 
 fn main() -> ExitCode {
     let argumentos: Vec<String> = std::env::args().skip(1).collect();
@@ -27,6 +27,7 @@ fn main() -> ExitCode {
             model,
             all,
         }) => ejecutar_canario(&provider, model.as_deref(), all),
+        Ok(Command::Panel { provider }) => ejecutar_panel(provider.as_deref()),
         Err(e) => {
             eprintln!("batuta: {e}");
             eprintln!("\n{USAGE}");
@@ -60,6 +61,31 @@ fn ejecutar_canario(proveedor: &str, modelo: Option<&str>, todos: bool) -> ExitC
 
     match salidas {
         Ok(salidas) => informar(&salidas),
+        Err(e) => {
+            eprintln!("batuta: {e}");
+            ExitCode::from(2)
+        }
+    }
+}
+
+/// `batuta panel`: imprime la tabla y sale con 0, salvo que no se pudiera
+/// siquiera construirla.
+fn ejecutar_panel(proveedor: Option<&str>) -> ExitCode {
+    let disposicion = match Layout::from_env() {
+        Ok(d) => d,
+        Err(e) => {
+            eprintln!("batuta: no hay dónde guardar el estado: {e}");
+            return ExitCode::from(2);
+        }
+    };
+    let proveedores = std::env::var_os("BATUTA_PROVIDERS")
+        .map_or_else(|| std::path::PathBuf::from("providers"), Into::into);
+
+    match filas(&proveedores, &disposicion, proveedor) {
+        Ok(filas) => {
+            print!("{}", tabla(&filas));
+            ExitCode::SUCCESS
+        }
         Err(e) => {
             eprintln!("batuta: {e}");
             ExitCode::from(2)

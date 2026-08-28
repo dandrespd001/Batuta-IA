@@ -96,6 +96,23 @@ pub enum CliError {
         /// Causa.
         source: Box<batuta_exec::ExecError>,
     },
+    /// La política no se pudo leer o escribir.
+    ///
+    /// Un fichero de política ausente **no** cae aquí: la primera vez que se
+    /// consulta el panel no hay ninguno, y eso es el estado inicial, no un
+    /// error. Esto es para cuando el fichero está y está roto.
+    Policy {
+        /// Causa.
+        source: Box<batuta_policy::PoliticaError>,
+    },
+    /// El almacén de recibos no se pudo consultar.
+    ///
+    /// Un recibo suelto ilegible tampoco cae aquí —eso lo cuenta el propio
+    /// panel, aparte—: esto es cuando el directorio entero no se pudo listar.
+    Store {
+        /// Causa.
+        source: Box<batuta_store::StoreError>,
+    },
     /// El disco no cooperó.
     Io {
         /// Qué se intentaba.
@@ -149,6 +166,8 @@ impl fmt::Display for CliError {
             ),
             Self::Manifest { source } => write!(f, "{source}"),
             Self::Exec { source } => write!(f, "{source}"),
+            Self::Policy { source } => write!(f, "{source}"),
+            Self::Store { source } => write!(f, "{source}"),
             Self::Io { path, source } => write!(f, "{}: {source}", path.display()),
         }
     }
@@ -159,6 +178,8 @@ impl std::error::Error for CliError {
         match self {
             Self::Manifest { source } => Some(source),
             Self::Exec { source } => Some(source),
+            Self::Policy { source } => Some(source),
+            Self::Store { source } => Some(source),
             Self::Io { source, .. } => Some(source),
             _ => None,
         }
