@@ -1,0 +1,150 @@
+//! Lo que `batuta-exec` necesita leer de un manifiesto.
+//!
+//! Existe porque no existía. `ProviderManifest` tenía accesores para lo que
+//! pedían los tests de carga —identificador, procedencia, ficheros de corrida,
+//! modelos— y **ninguno para `invoke`, `env`, `canary` ni el parser**, que es
+//! justo lo que hace falta para ejecutar. Escribí la superficie mirando las
+//! pruebas, y las pruebas no miraban ahí.
+//!
+//! Es la misma regla que ya se cobró dos huecos en esta fase: **lo que no está en
+//! un test no está en el contrato**. Aquí produjo una API ausente en vez de una
+//! equivocada, que es la variante silenciosa.
+//!
+//! Todo se comprueba contra los **dos manifiestos reales** del repositorio. Un
+//! manifiesto inventado para la ocasión probaría que los accesores compilan; sólo
+//! los de verdad prueban que sirven para lo que se escribieron.
+
+use std::path::{Path, PathBuf};
+
+use batuta_contract::{CanaryExpectation, EnvVarName, ParserKind, PromptDelivery};
+use batuta_manifest::ProviderManifest;
+
+fn cargar(nombre: &str) -> ProviderManifest {
+    let ruta = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../providers")
+        .join(nombre);
+    ProviderManifest::load(&ruta).unwrap_or_else(|e| panic!("{nombre} debe cargar: {e}"))
+}
+
+#[test]
+fn el_argv_de_dsh_se_puede_leer_entero() {
+    let dsh = cargar("dsh.toml");
+    let argv = dsh.invoke().argv();
+
+    assert_eq!(argv[0], "--profile");
+    assert_eq!(argv[1], "headless");
+    assert!(
+        argv.iter().any(|a| a.contains("{run_dir}")),
+        "el parche de composición viaja en argv: {argv:?}"
+    );
+    assert!(
+        argv.iter().any(|a| a == "{prompt}"),
+        "el prompt tiene que estar en argv: {argv:?}"
+    );
+}
+
+/// Medido: dsh rechaza el prompt por entrada estándar y no tiene bandera de
+/// fichero. El techo de sensibilidad de `argv` lo fija el contrato.
+#[test]
+fn dsh_recibe_el_prompt_por_argv_y_trabaja_en_el_worktree() {
+    let dsh = cargar("dsh.toml");
+    assert_eq!(dsh.invoke().prompt_via(), PromptDelivery::Argv);
+    assert_eq!(dsh.invoke().workdir(), "worktree");
+}
+
+/// R5: nada se hereda sin nombrarlo, y lo que se deniega se deniega por algo.
+#[test]
+fn la_allowlist_de_entorno_de_dsh_es_explicita_y_deniega_la_telemetria() {
+    let dsh = cargar("dsh.toml");
+    let permitidas: Vec<&str> = dsh.env().allow().iter().map(EnvVarName::as_str).collect();
+    let denegadas: Vec<&str> = dsh.env().deny().iter().map(EnvVarName::as_str).collect();
+
+    for necesaria in ["HOME", "PATH"] {
+        assert!(permitidas.contains(&necesaria), "falta {necesaria}");
+    }
+    // La composición base lee DSH_PERMISSION_MODE para decidir el modo de
+    // sandbox. Una variable heredada que moviera la contención es el fallo que
+    // R5 paga.
+    for prohibida in [
+        "DSH_PERMISSION_MODE",
+        "DSH_TELEMETRY_MODE",
+        "DSH_TELEMETRY_OTLP_URL",
+    ] {
+        assert!(denegadas.contains(&prohibida), "falta denegar {prohibida}");
+    }
+}
+
+/// **Guardia de seguridad, no de estilo.** La ayuda de `abacusai` 2.6.11 ofrece
+/// `--dangerously-skip-permissions`. batuta contiene por nombre; una bandera que
+/// apaga la comprobación entera es lo contrario de contener, y el día que alguien
+/// la añada «para desbloquear una corrida», este test lo para.
+#[test]
+fn ningun_manifiesto_emite_banderas_que_apaguen_la_contencion() {
+    for nombre in ["dsh.toml", "abacus.toml"] {
+        let manifiesto = cargar(nombre);
+        for argumento in manifiesto.invoke().argv() {
+            for prohibida in [
+                "--dangerously-skip-permissions",
+                "--yolo",
+                "--no-sandbox",
+                "--auto-accept-edits",
+            ] {
+                assert!(
+                    argumento != prohibida,
+                    "{nombre} emite {prohibida}, que apaga la contención"
+                );
+            }
+        }
+    }
+}
+
+#[test]
+fn abacus_pide_la_contencion_que_su_cli_ofrece() {
+    let abacus = cargar("abacus.toml");
+    let argv = abacus.invoke().argv();
+
+    assert!(argv.iter().any(|a| a == "--disallowed-tools"), "{argv:?}");
+    assert!(argv.iter().any(|a| a == "*"), "{argv:?}");
+    assert!(argv.iter().any(|a| a == "--no-agents-md"), "{argv:?}");
+
+    let fijadas: Vec<&str> = abacus.env().set().iter().map(|(k, _)| k.as_str()).collect();
+    assert!(fijadas.contains(&"ABACUSAI_NO_TELEMETRY"), "{fijadas:?}");
+}
+
+/// El canario compara con **su** token. Que el prompt lo lleve es lo que hace
+/// posible la comparación observacional en vez del juicio por subcadena (R3).
+#[test]
+fn el_canario_de_los_dos_lleva_su_token_y_espera_el_eco() {
+    for nombre in ["dsh.toml", "abacus.toml"] {
+        let manifiesto = cargar(nombre);
+        assert!(
+            manifiesto.canary().prompt().contains("{token}"),
+            "{nombre}: el prompt del canario no lleva token"
+        );
+        assert_eq!(manifiesto.canary().expect(), CanaryExpectation::TokenEcho);
+    }
+}
+
+/// R11: el pin no basta sin hash cuando el binario se autoactualiza.
+#[test]
+fn los_dos_fijan_su_binario_por_version_y_por_hash() {
+    for nombre in ["dsh.toml", "abacus.toml"] {
+        let manifiesto = cargar(nombre);
+        let ejecutable = manifiesto.executable();
+
+        assert!(!ejecutable.version_pin().is_empty(), "{nombre} sin pin");
+        let hash = ejecutable
+            .sha256()
+            .unwrap_or_else(|| panic!("{nombre}: R11 exige hash, no sólo versión"));
+        assert_eq!(hash.len(), 64, "{nombre}: sha256 mal formado");
+        assert!(!ejecutable.resolve().is_empty(), "{nombre} sin resolve");
+        assert_ne!(ejecutable.program(), PathBuf::new());
+    }
+}
+
+#[test]
+fn el_parser_de_los_dos_es_texto_plano() {
+    for nombre in ["dsh.toml", "abacus.toml"] {
+        assert_eq!(cargar(nombre).parser(), ParserKind::PlainText, "{nombre}");
+    }
+}

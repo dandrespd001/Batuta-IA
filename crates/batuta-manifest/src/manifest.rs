@@ -449,6 +449,35 @@ impl ProviderManifest {
     pub fn substitutions(&self) -> &Substitutions {
         &self.substitutions
     }
+    /// El ejecutable y su pin.
+    pub fn executable(&self) -> &Executable {
+        &self.executable
+    }
+
+    /// Cómo se autentica el proveedor.
+    pub fn auth(&self) -> &Auth {
+        &self.auth
+    }
+
+    /// Cómo se invoca: `argv`, dónde trabaja y por dónde entra el prompt.
+    pub fn invoke(&self) -> &Invoke {
+        &self.invoke
+    }
+
+    /// La allowlist de entorno (R5).
+    pub fn env(&self) -> &EnvPolicy {
+        &self.env
+    }
+
+    /// Cómo se extrae el artefacto del flujo crudo (R14).
+    pub fn parser(&self) -> ParserKind {
+        self.parser
+    }
+
+    /// El canario del proveedor.
+    pub fn canary(&self) -> &Canary {
+        &self.canary
+    }
 }
 
 impl ModelEntry {
@@ -879,4 +908,118 @@ fn sha256_hex(path: &Path) -> std::io::Result<String> {
             let _ = write!(hex, "{byte:02x}");
             hex
         }))
+}
+
+impl Executable {
+    /// El programa tal como lo nombra el manifiesto.
+    pub fn program(&self) -> &Path {
+        &self.program
+    }
+
+    /// La versión fijada.
+    pub fn version_pin(&self) -> &str {
+        &self.version_pin
+    }
+
+    /// Cómo se le pregunta la versión.
+    pub fn version_probe(&self) -> &[String] {
+        &self.version_probe
+    }
+
+    /// El hash fijado, si lo hay.
+    ///
+    /// R11 lo quiere siempre: una versión que coincide no dice que el binario sea
+    /// el mismo, y el pin de un proveedor decía `2.6.9` mientras corría la
+    /// `2.6.11`.
+    pub fn sha256(&self) -> Option<&str> {
+        self.sha256.as_deref()
+    }
+
+    /// Dónde buscarlo, en orden.
+    pub fn resolve(&self) -> &[String] {
+        &self.resolve
+    }
+}
+
+impl Auth {
+    /// Método de autenticación.
+    pub fn method(&self) -> AuthMethod {
+        self.method
+    }
+
+    /// Dónde guarda el CLI su propia sesión, si la guarda.
+    pub fn store_path(&self) -> Option<&Path> {
+        self.store_path.as_deref()
+    }
+
+    /// El nombre sellado de la credencial.
+    ///
+    /// **Sale de aquí y de ningún otro sitio** (R10): buscar `deepseek-api-key`
+    /// lo que se había sellado como `qwen-deepseek-api-key` costó semanas sin
+    /// credencial teniendo la clave en la máquina.
+    pub fn credential(&self) -> Option<&str> {
+        self.credential.as_deref()
+    }
+
+    /// La variable de entorno que lleva la credencial.
+    pub fn env(&self) -> Option<&EnvVarName> {
+        self.env.as_ref()
+    }
+}
+
+impl Invoke {
+    /// El `argv` con sus llaves todavía sin sustituir.
+    pub fn argv(&self) -> &[String] {
+        &self.argv
+    }
+
+    /// Dónde trabaja el proceso.
+    pub fn workdir(&self) -> &str {
+        &self.workdir
+    }
+
+    /// Por dónde entra el prompt.
+    ///
+    /// El techo de sensibilidad de cada vía lo fija el contrato, no este
+    /// manifiesto: `argv` se lee desde `ps`.
+    pub fn prompt_via(&self) -> PromptDelivery {
+        self.prompt_via
+    }
+
+    /// La bandera con la que entra el prompt cuando viaja por fichero.
+    pub fn prompt_flag(&self) -> Option<&str> {
+        self.prompt_flag.as_deref()
+    }
+}
+
+impl EnvPolicy {
+    /// Lo único que se hereda del entorno. Nada más (R5).
+    pub fn allow(&self) -> &[EnvVarName] {
+        &self.allow
+    }
+
+    /// Lo que se deniega aunque estuviera permitido.
+    ///
+    /// Existe porque hay variables que el proveedor lee para decidir su propia
+    /// contención: heredarlas movería la jaula sin que nadie lo pidiera.
+    pub fn deny(&self) -> &[EnvVarName] {
+        &self.deny
+    }
+
+    /// Lo que se fija explícitamente.
+    pub fn set(&self) -> &[(EnvVarName, String)] {
+        &self.set
+    }
+}
+
+impl Canary {
+    /// El prompt, con `{token}` sin sustituir.
+    pub fn prompt(&self) -> &str {
+        &self.prompt
+    }
+
+    /// Qué se comprueba, y se comprueba **observando** (R3).
+    pub fn expect(&self) -> CanaryExpectation {
+        self.expect
+    }
 }
