@@ -1,0 +1,22 @@
+[package]
+name = "batuta-store"
+description = "La evidencia, consultable: el recibo verde más reciente de un modelo, con invalidación por manifest_sha256 y un TTL declarado."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+# Sólo lee del directorio de recibos que batuta-cli ya escribe. No ejecuta
+# nada, así que no depende de batuta-exec; no decide qué usar, así que no
+# depende de batuta-policy.
+[dependencies]
+batuta-receipt = { path = "../batuta-receipt" }
+serde_json = { workspace = true }
+
+# Sólo para construir recibos de prueba (`RunFacts` pide `ProvenanceSource`).
+# El crate en sí no la usa.
+[dev-dependencies]
+batuta-contract = { path = "../batuta-contract" }
+
+[lints]
+workspace = true

@@ -10,7 +10,7 @@
 use std::path::PathBuf;
 use std::time::Duration;
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 use batuta_contract::ProvenanceSource;
 
@@ -21,14 +21,14 @@ use crate::verdict::{RedReason, Verdict};
 /// Va en el recibo porque **el modelo no viaja en `argv`**: viaja en un
 /// documento que batuta escribe. Un recibo sin esto no permite reproducir la
 /// corrida ni explicar por qué corrió lo que corrió.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct MaterializedFile {
     path: PathBuf,
     content: String,
 }
 
 /// Lo que la máquina anotó sobre la corrida, leído de su registro.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ObservedProvenance {
     provider: String,
     model: String,
@@ -99,7 +99,13 @@ impl ObservedProvenance {
 }
 
 /// El recibo de una corrida. Existe, luego es coherente.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+///
+/// `Deserialize` es a propósito y es el único lugar donde se permite: leer de
+/// vuelta un recibo que `Receipt::seal` ya escribió no es lo mismo que dejar
+/// que cualquiera construya un veredicto sin pasar por `seal` —el JSON en
+/// disco es el mismo documento sellado, íntegro, no una entrada nueva—, y es
+/// lo que `batuta-store` necesita para leer la evidencia ya producida.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Receipt {
     provider: String,
     model_requested: String,
@@ -143,6 +149,16 @@ impl Receipt {
     /// registro, y del registro al manifiesto.
     pub fn route_model(&self) -> &str {
         &self.route_model
+    }
+
+    /// El `sha256` del manifiesto que gobernó esta corrida.
+    ///
+    /// Es lo que permite invalidar la evidencia sin que nadie tenga que
+    /// acordarse: si el manifiesto cambió desde que se selló este recibo, su
+    /// hash ya no coincide con el que gobierna hoy, y ese desacuerdo es la
+    /// invalidación entera. `batuta-store` lo usa para eso.
+    pub fn manifest_sha256(&self) -> &str {
+        &self.manifest_sha256
     }
 
     /// El nombre con el que la máquina lo anota, si se declaró distinto del que

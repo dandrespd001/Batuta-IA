@@ -12,10 +12,10 @@
 //! veredicto lo produce batuta y no lo parsea de nadie: nunca hay que rechazar
 //! un veredicto ajeno.
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 /// Qué concluyó batuta sobre una corrida.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Verdict {
     /// La corrida hizo lo que decía, y consta.
     Green,
@@ -34,7 +34,7 @@ pub enum Verdict {
 /// Cada uno tiene mensaje propio, y `tests/mensajes.rs` fija qué debe nombrar
 /// cada uno: «falló» no es un diagnóstico, y `"Harness worker failed with exit
 /// 1"` es exactamente el mensaje que costó días.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum RedReason {
     /// Ninguna ruta de `resolve` dio un ejecutable. Es R1 llegando tarde.
     ExecutableUnresolved,

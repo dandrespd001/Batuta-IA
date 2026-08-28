@@ -74,6 +74,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "batuta-store"
+version = "0.1.0"
+dependencies = [
+ "batuta-contract",
+ "batuta-receipt",
+ "serde_json",
+]
+
+[[package]]
 name = "bitflags"
 version = "2.13.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
