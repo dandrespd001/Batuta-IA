@@ -56,6 +56,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "batuta-policy"
+version = "0.1.0"
+dependencies = [
+ "batuta-contract",
+ "serde",
+ "toml",
+]
+
+[[package]]
 name = "batuta-receipt"
 version = "0.1.0"
 dependencies = [

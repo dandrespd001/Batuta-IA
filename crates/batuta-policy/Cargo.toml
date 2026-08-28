@@ -1,0 +1,19 @@
+[package]
+name = "batuta-policy"
+description = "El fichero de elección: qué modelos queremos usar y con qué esfuerzo. No decide qué es enrutable -eso lo dicen el manifiesto y el recibo-, decide qué queremos enrutar."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+# Sólo batuta-contract. R3: la medición nunca consulta la política que
+# informa, así que la política no depende del que mide -batuta-exec- ni de
+# quien mide su procedencia -batuta-receipt-. Un test de este crate
+# (tests/estructura.rs) lee este Cargo.toml y lo hace cumplir.
+[dependencies]
+batuta-contract = { path = "../batuta-contract" }
+serde = { workspace = true, features = ["std"] }
+toml = { workspace = true }
+
+[lints]
+workspace = true
