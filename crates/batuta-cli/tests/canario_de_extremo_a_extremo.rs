@@ -7,7 +7,7 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use batuta_cli::{Layout, canary};
+use batuta_cli::{Layout, canary, canary_all};
 
 fn proveedores() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures")
@@ -152,4 +152,47 @@ fn el_recibo_escrito_lleva_los_hechos_y_ningun_valor_de_entorno() {
         !json.contains(&ruta),
         "el recibo lleva el VALOR de una variable de entorno"
     );
+}
+
+/// Un canario por modelo, y **ninguno detiene a los demás**.
+///
+/// Un modelo rojo no es un fallo del lote: es el resultado de ese modelo. Parar
+/// en el primero dejaría sin medir a los que van detrás, y el lote existe
+/// justamente para saber cuáles valen.
+#[test]
+fn todos_los_modelos_del_proveedor_reciben_su_canario() {
+    let disposicion = disposicion("lote");
+    let salidas = canary_all(
+        "dos-modelos",
+        &proveedores(),
+        &disposicion,
+        Path::new("/inexistente"),
+    )
+    .expect("el lote tiene que poder ejecutarse");
+
+    assert_eq!(salidas.len(), 2, "un canario por modelo");
+    for salida in &salidas {
+        assert!(
+            salida.receipt.verdict().is_green(),
+            "{:?}",
+            salida.receipt.verdict()
+        );
+        assert!(salida.receipt_path.is_file(), "recibo en disco");
+    }
+
+    // Cada modelo tiene el suyo, no dos veces el mismo.
+    let modelos: Vec<&str> = salidas
+        .iter()
+        .map(|s| s.receipt.model_requested())
+        .collect();
+    assert!(modelos.contains(&"eco-rapido"), "{modelos:?}");
+    assert!(modelos.contains(&"eco-lento"), "{modelos:?}");
+
+    // Y los leases quedan sueltos: el lote los toma y los suelta uno a uno.
+    for espacio in ["model", "repository"] {
+        let vivos: Vec<_> = fs::read_dir(disposicion.leases().join(espacio))
+            .map(|e| e.filter_map(Result::ok).collect())
+            .unwrap_or_default();
+        assert!(vivos.is_empty(), "quedó un lease en {espacio}: {vivos:?}");
+    }
 }

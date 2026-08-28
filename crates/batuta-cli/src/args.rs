@@ -14,8 +14,10 @@ pub enum Command {
     Canary {
         /// Qué proveedor.
         provider: String,
-        /// Qué modelo suyo. `None` sólo vale si declara uno solo.
+        /// Qué modelo suyo. `None` sólo vale si declara uno solo, o con `all`.
         model: Option<String>,
+        /// Todos sus modelos, uno tras otro.
+        all: bool,
     },
     /// La ayuda.
     Help,
@@ -24,8 +26,11 @@ pub enum Command {
 /// Las órdenes que hay. El error de orden desconocida las enumera (R8).
 pub const COMMANDS: &[&str] = &["canary", "help"];
 
-/// Las banderas de `canary`.
+/// Las banderas de `canary` que llevan valor.
 pub const CANARY_FLAGS: &[&str] = &["--provider", "--model"];
+
+/// Los interruptores de `canary`: van solos y no llevan valor.
+pub const CANARY_SWITCHES: &[&str] = &["--all"];
 
 /// La ayuda.
 ///
@@ -36,6 +41,7 @@ batuta — orquestador de delegación
 
 USO
     batuta canary --provider <id> [--model <id>]
+    batuta canary --provider <id> --all
     batuta help
 
 ÓRDENES
@@ -47,10 +53,13 @@ BANDERAS DE canary
     --provider <id>   El proveedor, tal como lo nombra su manifiesto.
     --model <id>      Uno de sus modelos. Obligatoria si declara más de uno:
                       con varios, batuta no elige en silencio.
+    --all             Todos sus modelos, uno tras otro. Un modelo rojo no
+                      detiene a los demás: el lote existe para saber cuáles
+                      valen. Incompatible con --model.
 
 SALIDA
-    0    el canario salió verde
-    1    el canario salió rojo; el motivo se imprime
+    0    el canario salió verde (con --all: todos)
+    1    salió rojo; el motivo se imprime (con --all: al menos uno)
     2    no llegó a haber veredicto; el motivo se imprime
 ";
 
@@ -85,11 +94,15 @@ pub fn parse(args: &[String]) -> Result<Command, CliError> {
 fn parsear_canary(args: &[String]) -> Result<Command, CliError> {
     let mut provider: Option<String> = None;
     let mut model: Option<String> = None;
+    let mut all = false;
 
     let mut indice = 0;
     while indice < args.len() {
         let argumento = &args[indice];
-        if CANARY_FLAGS.contains(&argumento.as_str()) {
+        if CANARY_SWITCHES.contains(&argumento.as_str()) {
+            all = true;
+            indice += 1;
+        } else if CANARY_FLAGS.contains(&argumento.as_str()) {
             let Some(valor) = args.get(indice + 1) else {
                 return Err(CliError::MissingValue {
                     flag: argumento.clone(),
@@ -107,13 +120,29 @@ fn parsear_canary(args: &[String]) -> Result<Command, CliError> {
             }
             indice += 2;
         } else {
+            let mut available = CANARY_FLAGS.to_vec();
+            available.extend_from_slice(CANARY_SWITCHES);
             return Err(CliError::UnknownFlag {
                 given: argumento.clone(),
-                available: CANARY_FLAGS.to_vec(),
+                available,
             });
         }
     }
 
+    // Contradecirse es un error, no una preferencia que batuta resuelva por su
+    // cuenta: elegir en silencio entre dos instrucciones incompatibles es la
+    // forma exacta en que se pidió un modelo y corrió otro.
+    if all && model.is_some() {
+        return Err(CliError::ContradictoryFlags {
+            one: "--all",
+            other: "--model",
+        });
+    }
+
     let provider = provider.ok_or(CliError::MissingFlag { flag: "--provider" })?;
-    Ok(Command::Canary { provider, model })
+    Ok(Command::Canary {
+        provider,
+        model,
+        all,
+    })
 }

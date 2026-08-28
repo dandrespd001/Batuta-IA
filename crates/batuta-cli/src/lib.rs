@@ -9,7 +9,7 @@ pub mod command;
 pub mod error;
 pub mod paths;
 
-pub use args::{CANARY_FLAGS, COMMANDS, Command, USAGE, parse};
-pub use command::{CanaryOutcome, canary};
+pub use args::{CANARY_FLAGS, CANARY_SWITCHES, COMMANDS, Command, USAGE, parse};
+pub use command::{CanaryOutcome, canary, canary_all};
 pub use error::CliError;
 pub use paths::Layout;

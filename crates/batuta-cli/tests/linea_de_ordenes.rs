@@ -28,6 +28,7 @@ fn canary_con_proveedor_y_modelo_se_entiende() {
         Command::Canary {
             provider: "dsh".to_string(),
             model: Some("dsh-deepseek-v4-flash".to_string()),
+            all: false,
         }
     );
 }
@@ -41,6 +42,7 @@ fn el_modelo_es_opcional() {
         Command::Canary {
             provider: "abacus".to_string(),
             model: None,
+            all: false,
         }
     );
 }
@@ -101,10 +103,55 @@ fn la_ayuda_no_promete_ninguna_bandera_que_el_parseo_no_admita() {
         if !bandera.starts_with("--") || bandera == "--help" {
             continue;
         }
-        let intento = parse(&argumentos(&["canary", "--provider", "eco", bandera, "x"]));
+        // Se prueban las dos formas —con valor y sin él— y basta con que una
+        // valga: hay banderas que llevan valor (`--model`) y hay interruptores
+        // que no (`--all`), y la ayuda nombra las dos.
+        let con_valor = parse(&argumentos(&["canary", "--provider", "eco", bandera, "x"]));
+        let sin_valor = parse(&argumentos(&["canary", "--provider", "eco", bandera]));
         assert!(
-            intento.is_ok(),
-            "la ayuda nombra {bandera} y el parseo la rechaza"
+            con_valor.is_ok() || sin_valor.is_ok(),
+            "la ayuda nombra {bandera} y el parseo la rechaza de las dos formas"
         );
     }
+}
+
+/// `--all` reparte los permisos de un proveedor entero.
+///
+/// Es la respuesta concreta a «que anadir o quitar modelos sea sencillo»: anadir
+/// uno son cinco lineas de manifiesto **mas un canario que pase**, y esta es la
+/// orden que lo pasa. Sin ella, R2 —un modelo sin recibo no se enruta— seria una
+/// regla que obliga a un trabajo manual por modelo.
+#[test]
+fn all_pide_el_canario_de_todos_los_modelos() {
+    let orden = parse(&argumentos(&["canary", "--provider", "abacus", "--all"])).expect("orden");
+
+    assert_eq!(
+        orden,
+        Command::Canary {
+            provider: "abacus".to_string(),
+            model: None,
+            all: true,
+        }
+    );
+}
+
+/// `--all` y `--model` se contradicen, y contradecirse es un error, no una
+/// preferencia que batuta resuelva por su cuenta. Elegir en silencio entre dos
+/// instrucciones incompatibles es la forma en que se pidio un modelo y corrio
+/// otro.
+#[test]
+fn pedir_todos_y_uno_a_la_vez_no_se_resuelve_en_silencio() {
+    let error = parse(&argumentos(&[
+        "canary",
+        "--provider",
+        "abacus",
+        "--model",
+        "abacus-grok-4.6",
+        "--all",
+    ]))
+    .expect_err("`--all` y `--model` no pueden ir juntas");
+    let mensaje = error.to_string();
+
+    assert!(mensaje.contains("--all"), "{mensaje}");
+    assert!(mensaje.contains("--model"), "{mensaje}");
 }

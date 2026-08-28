@@ -84,10 +84,75 @@ source = "declared"
 # El catálogo vive en el servidor. Búsqueda exhaustiva de «ZAI GLM 5.3 Flash» en
 # el paquete npm y en el binario real de 112 MB: CERO coincidencias. No se valida
 # estáticamente y no se intenta: lo detecta el canario (ver §4 del esquema).
+# Los modelos que el Arquitecto usa en Abacus. `route_model` es el nombre TAL Y
+# COMO Abacus lo entiende: opaco, con espacios y mayusculas, pasado literal al
+# `argv`. `id` es el nombre canonico dentro de batuta y es un slug.
+#
+# NINGUNO ESTA AQUI POR DESEO. R2: un modelo sin canario verde y vigente no es
+# enrutable, y el manifiesto no es una lista de deseos. Anadir uno son cinco
+# lineas MAS un canario que pase; quitarlo son cinco lineas menos. El estado de
+# cada uno esta en `docs/medidas/CANARIOS.md`.
+#
+#     batuta canary --provider abacus --all
+#
+# es la orden que reparte los permisos.
+
 [[models]]
 id              = "abacus-glm-5.3-flash"
 route_model     = "ZAI GLM 5.3 Flash"
 roles           = ["review", "implementation"]
+max_sensitivity = "internal"
+
+[[models]]
+id              = "abacus-glm-5.3"
+route_model     = "ZAI GLM 5.3"
+roles           = ["review", "implementation"]
+max_sensitivity = "internal"
+
+[[models]]
+id              = "abacus-qwen3.8-27b"
+route_model     = "Qwen3.8 27B"
+roles           = ["implementation", "boilerplate"]
+max_sensitivity = "internal"
+
+[[models]]
+id              = "abacus-qwen3.8-max"
+route_model     = "Qwen3.8 Max"
+roles           = ["review", "implementation"]
+max_sensitivity = "internal"
+
+[[models]]
+id              = "abacus-qwen3.8-flash-next"
+route_model     = "Qwen3.8 Flash Next"
+roles           = ["implementation", "boilerplate"]
+max_sensitivity = "internal"
+
+[[models]]
+id              = "abacus-grok-4.5"
+route_model     = "Grok 4.5"
+roles           = ["review", "implementation"]
+max_sensitivity = "internal"
+
+[[models]]
+id              = "abacus-grok-4.6"
+route_model     = "Grok 4.6"
+roles           = ["review", "implementation"]
+max_sensitivity = "internal"
+
+[[models]]
+id              = "abacus-gemini-3.7-flash"
+route_model     = "Gemini 3.7 Flash"
+roles           = ["implementation", "boilerplate"]
+max_sensitivity = "internal"
+
+# RouteLLM no es un modelo: es un enrutador que elige uno por su cuenta. Su
+# canario dice si el transporte responde, NUNCA que modelo corrio, y su recibo
+# saldra con `model_confirmed: false` como el de cualquier otro de abacus. Que
+# batuta enrute a un enrutador es una decision de politica, no de manifiesto.
+[[models]]
+id              = "abacus-routellm"
+route_model     = "RouteLLM"
+roles           = ["implementation"]
 max_sensitivity = "internal"
 
 [canary]

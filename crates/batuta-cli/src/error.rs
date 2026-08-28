@@ -32,6 +32,17 @@ pub enum CliError {
         /// La bandera.
         flag: &'static str,
     },
+    /// Dos banderas que se contradicen.
+    ///
+    /// No se resuelve por preferencia ni por orden de aparición: elegir en
+    /// silencio entre dos instrucciones incompatibles es la forma exacta en que
+    /// se pidió un modelo y corrió otro.
+    ContradictoryFlags {
+        /// Una.
+        one: &'static str,
+        /// La otra.
+        other: &'static str,
+    },
     /// Una bandera que no se admite.
     UnknownFlag {
         /// Lo que se escribió.
@@ -106,6 +117,9 @@ impl fmt::Display for CliError {
                 write!(f, "`{flag}` necesita un valor y vino sola")
             }
             Self::MissingFlag { flag } => write!(f, "falta `{flag}`"),
+            Self::ContradictoryFlags { one, other } => {
+                write!(f, "`{one}` y `{other}` se contradicen: elige una")
+            }
             Self::UnknownFlag { given, available } => write!(
                 f,
                 "`{given}` no es una bandera de esta orden; las que hay: {}",

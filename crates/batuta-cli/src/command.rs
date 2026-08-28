@@ -44,27 +44,84 @@ pub fn canary(
     layout: &Layout,
     dsh_home: &Path,
 ) -> Result<CanaryOutcome, CliError> {
-    // R7: los manifiestos se releen en cada invocación, nunca se cachean. Un
-    // directorio con un manifiesto roto falla aquí, antes de tocar nada (R1).
-    let manifiestos =
-        ProviderManifest::load_dir(providers_dir).map_err(|e| CliError::Manifest {
-            source: Box::new(e),
-        })?;
-
-    let Some(manifiesto) = manifiestos.iter().find(|m| m.id().as_str() == provider) else {
-        let mut available: Vec<String> = manifiestos
-            .iter()
-            .map(|m| m.id().as_str().to_string())
-            .collect();
-        available.sort();
-        return Err(CliError::UnknownProvider {
-            asked: provider.to_string(),
-            available,
-        });
-    };
-
+    let manifiestos = cargar(providers_dir)?;
+    let manifiesto = hallar(&manifiestos, provider)?;
     let modelo = elegir_modelo(manifiesto, provider, model)?;
 
+    ejecutar(manifiesto, modelo, provider, layout, dsh_home)
+}
+
+/// Lanza el canario de **todos** los modelos de un proveedor, uno tras otro.
+///
+/// Es la respuesta concreta a que añadir o quitar un modelo sea sencillo: añadir
+/// uno son cinco líneas de manifiesto **más un canario que pase** —R2: un modelo
+/// sin recibo verde no es enrutable— y ésta es la orden que lo pasa.
+///
+/// **Un modelo rojo no detiene a los demás.** Un rojo es el resultado de ese
+/// modelo, no un fallo del lote; parar en el primero dejaría sin medir a los que
+/// van detrás, y el lote existe justamente para saber cuáles valen.
+///
+/// # Errors
+///
+/// Sólo lo que impide llegar a tener veredictos: el proveedor no existe, los
+/// manifiestos no cargan, el disco no coopera. Un `Err` de una corrida concreta
+/// **sí** corta el lote, porque significa que la máquina no está en condiciones
+/// —no hay ejecutable, no se pudo admitir— y las siguientes fallarían igual.
+pub fn canary_all(
+    provider: &str,
+    providers_dir: &Path,
+    layout: &Layout,
+    dsh_home: &Path,
+) -> Result<Vec<CanaryOutcome>, CliError> {
+    let manifiestos = cargar(providers_dir)?;
+    let manifiesto = hallar(&manifiestos, provider)?;
+
+    manifiesto
+        .models()
+        .iter()
+        .map(|modelo| ejecutar(manifiesto, modelo, provider, layout, dsh_home))
+        .collect()
+}
+
+/// Los manifiestos del directorio, releídos.
+///
+/// R7: nunca se cachean. Un directorio con un manifiesto roto falla aquí, antes
+/// de tocar nada (R1).
+fn cargar(providers_dir: &Path) -> Result<Vec<ProviderManifest>, CliError> {
+    ProviderManifest::load_dir(providers_dir).map_err(|e| CliError::Manifest {
+        source: Box::new(e),
+    })
+}
+
+/// El manifiesto de un proveedor, o un error que **enumera los que sí hay** (R8).
+fn hallar<'a>(
+    manifiestos: &'a [ProviderManifest],
+    provider: &str,
+) -> Result<&'a ProviderManifest, CliError> {
+    manifiestos
+        .iter()
+        .find(|m| m.id().as_str() == provider)
+        .ok_or_else(|| {
+            let mut available: Vec<String> = manifiestos
+                .iter()
+                .map(|m| m.id().as_str().to_string())
+                .collect();
+            available.sort();
+            CliError::UnknownProvider {
+                asked: provider.to_string(),
+                available,
+            }
+        })
+}
+
+/// Una corrida concreta: directorios, canario y recibo en disco.
+fn ejecutar(
+    manifiesto: &ProviderManifest,
+    modelo: &ModelEntry,
+    provider: &str,
+    layout: &Layout,
+    dsh_home: &Path,
+) -> Result<CanaryOutcome, CliError> {
     let nombre = nombre_corrida(provider, modelo.id().as_str());
     let corrida = layout.runs().join(&nombre);
     let workdir = corrida.join("arbol");

@@ -12,7 +12,7 @@
 
 use std::process::ExitCode;
 
-use batuta_cli::{Command, Layout, USAGE, canary, parse};
+use batuta_cli::{CanaryOutcome, Command, Layout, USAGE, canary, canary_all, parse};
 
 fn main() -> ExitCode {
     let argumentos: Vec<String> = std::env::args().skip(1).collect();
@@ -22,7 +22,11 @@ fn main() -> ExitCode {
             println!("{USAGE}");
             ExitCode::SUCCESS
         }
-        Ok(Command::Canary { provider, model }) => ejecutar_canario(&provider, model.as_deref()),
+        Ok(Command::Canary {
+            provider,
+            model,
+            all,
+        }) => ejecutar_canario(&provider, model.as_deref(), all),
         Err(e) => {
             eprintln!("batuta: {e}");
             eprintln!("\n{USAGE}");
@@ -31,7 +35,7 @@ fn main() -> ExitCode {
     }
 }
 
-fn ejecutar_canario(proveedor: &str, modelo: Option<&str>) -> ExitCode {
+fn ejecutar_canario(proveedor: &str, modelo: Option<&str>, todos: bool) -> ExitCode {
     let disposicion = match Layout::from_env() {
         Ok(d) => d,
         Err(e) => {
@@ -48,27 +52,56 @@ fn ejecutar_canario(proveedor: &str, modelo: Option<&str>) -> ExitCode {
     let dsh_home = std::env::var_os("DSH_HOME")
         .map_or_else(|| disposicion.root().join("dsh"), std::path::PathBuf::from);
 
-    match canary(proveedor, modelo, &proveedores, &disposicion, &dsh_home) {
-        Ok(salida) => {
-            println!("recibo: {}", salida.receipt_path.display());
-            if salida.receipt.verdict().is_green() {
-                println!(
-                    "verde — modelo {}",
-                    if salida.receipt.model_confirmed() {
-                        "confirmado"
-                    } else {
-                        "sin confirmar: el proveedor no deja registro legible"
-                    }
-                );
-                ExitCode::SUCCESS
-            } else {
-                eprintln!("rojo — {:?}", salida.receipt.verdict());
-                ExitCode::from(1)
-            }
-        }
+    let salidas = if todos {
+        canary_all(proveedor, &proveedores, &disposicion, &dsh_home)
+    } else {
+        canary(proveedor, modelo, &proveedores, &disposicion, &dsh_home).map(|una| vec![una])
+    };
+
+    match salidas {
+        Ok(salidas) => informar(&salidas),
         Err(e) => {
             eprintln!("batuta: {e}");
             ExitCode::from(2)
         }
+    }
+}
+
+/// Una línea por canario, y el código de salida del conjunto.
+///
+/// Con `--all`, **rojo si alguno lo es**. Un lote no es verde «en general»: o
+/// todos sus modelos están permitidos o no lo están, y decir «casi» no sirve
+/// para enrutar nada.
+fn informar(salidas: &[CanaryOutcome]) -> ExitCode {
+    let mut rojos = 0;
+    for salida in salidas {
+        let recibo = &salida.receipt;
+        if recibo.verdict().is_green() {
+            println!(
+                "verde  {}  modelo {}  → {}",
+                recibo.model_requested(),
+                if recibo.model_confirmed() {
+                    "confirmado"
+                } else {
+                    "sin confirmar"
+                },
+                salida.receipt_path.display()
+            );
+        } else {
+            rojos += 1;
+            eprintln!(
+                "ROJO   {}  {:?}  → {}",
+                recibo.model_requested(),
+                recibo.verdict(),
+                salida.receipt_path.display()
+            );
+        }
+    }
+
+    if rojos == 0 {
+        ExitCode::SUCCESS
+    } else {
+        eprintln!("\n{rojos} de {} en rojo", salidas.len());
+        ExitCode::from(1)
     }
 }

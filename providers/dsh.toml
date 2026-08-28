@@ -147,13 +147,21 @@ model    = "{route_model}"
 defaultPreset = "{preset}"
 
 # ── Modelos ──────────────────────────────────────────────────────────────────
-# UNO, porque uno es el que tiene canario (R2). Los demás entran cuando su
-# canario pase, no antes: el manifiesto no es una lista de deseos.
+# Cada uno entra cuando su canario pasa, no antes: el manifiesto no es una lista
+# de deseos (R2). `batuta canary --provider dsh --all` reparte los permisos, y el
+# estado de cada uno está en `docs/medidas/CANARIOS.md`.
 [[models]]
 id              = "dsh-deepseek-v4-flash"
 route_provider  = "deepseek-official"
 route_model     = "deepseek-v4-flash"
 roles           = ["implementation", "boilerplate", "tests", "bulk_refactor"]
+max_sensitivity = "internal"
+
+[[models]]
+id              = "dsh-deepseek-v4-flash-vision-exp"
+route_provider  = "deepseek-official"
+route_model     = "DeepSeek-V4-Flash-Vision-Exp"
+roles           = ["implementation"]
 max_sensitivity = "internal"
 
 [canary]
