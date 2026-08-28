@@ -12,6 +12,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "batuta-lease"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "batuta-manifest"
 version = "0.1.0"
 dependencies = [
@@ -19,6 +27,15 @@ dependencies = [
  "serde",
  "sha2",
  "toml",
+]
+
+[[package]]
+name = "batuta-receipt"
+version = "0.1.0"
+dependencies = [
+ "batuta-contract",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]

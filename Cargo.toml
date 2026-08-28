@@ -1,6 +1,11 @@
 [workspace]
 resolver = "3"
-members = ["crates/batuta-contract", "crates/batuta-manifest"]
+members = [
+    "crates/batuta-contract",
+    "crates/batuta-manifest",
+    "crates/batuta-receipt",
+    "crates/batuta-lease",
+]
 
 [workspace.package]
 version = "0.1.0"

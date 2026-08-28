@@ -15,7 +15,8 @@ kind           = "cli"
 # Medido el 2026-08-27: `command -v abacusai` -> ~/.local/bin/abacusai, que es un
 # enlace a shim.cjs. La versión instalada es la 2.6.11, la única que conoce el
 # modelo que se quiere usar. El pin del orquestador viejo decía 2.6.9, existía, y
-# el resolutor la prefería: R11 se paga aquí.
+# el resolutor la prefería: R11 se paga aquí. **Y las dos siguen en disco**:
+# ~/.abacusai/versions/ tiene 2.6.9 y 2.6.11. La trampa no es histórica, está viva.
 [executable]
 program       = "~/.local/bin/abacusai"
 version_pin   = "2.6.11"
@@ -55,10 +56,19 @@ parser = "plain_text"
 [provenance]
 source = "declared"
 
-# El catálogo vive en el servidor. Búsqueda exhaustiva de la cadena exacta
-# «ZAI GLM 5.3 Flash» en el paquete instalado: CERO coincidencias. No se puede
-# validar estáticamente y no se intenta: lo detecta el canario (ver §4 del
-# esquema).
+# QUIÉN ELIGE EL MODELO: **Abacus, no batuta.** El modelo se selecciona dentro
+# del producto; `route_model` documenta *qué hay que tener seleccionado allí*, no
+# lo que esta bandera impone. `--model` existe en la ayuda de la 2.6.11 y se pasa,
+# pero **no está demostrado que sea la autoridad**, y no se va a afirmar que lo sea.
+#
+# Es la SEGUNDA vez que la bandera no manda sobre el modelo: en dsh, el `--patch`
+# aterrizaba en la composición y ganaba el documento de settings. Dos proveedores,
+# dos mecanismos distintos, la misma lección: **la bandera no es la autoridad**.
+# Por eso el recibo anota lo observado y no lo pedido.
+#
+# El catálogo vive en el servidor. Búsqueda exhaustiva de «ZAI GLM 5.3 Flash» en
+# el paquete npm y en el binario real de 112 MB: CERO coincidencias. No se valida
+# estáticamente y no se intenta: lo detecta el canario (ver §4 del esquema).
 [[models]]
 id              = "abacus-glm-5.3-flash"
 route_model     = "ZAI GLM 5.3 Flash"
