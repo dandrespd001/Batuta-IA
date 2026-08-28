@@ -7,15 +7,26 @@ sitios y lo confirma en el resto; cada cambio dice de dónde sale.
 
 ---
 
-## §1 Alcance: dos crates, no tres
+## §1 Alcance: tres crates
 
-`batuta-exec` y `batuta-receipt`. **`batuta-lease` se aplaza y se dice por qué**: la
-admisión por leases resuelve la concurrencia entre delegaciones simultáneas, y hoy no hay
-ninguna. Escribirlo ahora sería declarar una necesidad en vez de demostrarla (R2). Entra
-cuando haya dos encargos compitiendo de verdad.
+`batuta-exec`, `batuta-receipt` y `batuta-lease`.
 
-`batuta-plugin` tampoco: `parser = "plain_text"` basta para los dos proveedores que
-existen, medido. La ABI C espera a que haya un transporte que la necesite.
+**Sobre el lease hubo un error de alcance en el primer borrador de este documento, y lo
+corrigen los propios requisitos.** Se propuso aplazarlo con el argumento de que hoy no hay
+delegaciones concurrentes. Pero R6 no dice «matar la tarea mata el árbol»: dice **«matar la
+tarea mata el árbol *y libera el lease*»**, y su verificación en el brief §7.4 es literal —
+*«matar la tarea deja cero hijos y cero leases»*. Sin leases, **R6 no se puede comprobar**,
+que es exactamente lo que esta fase existe para demostrar. El fallo que la paga tampoco era
+hipotético: `TaskStop` dejaba el hijo vivo gastando cuota **y su lease de repositorio
+bloqueando a cualquier otro modelo** con `AdmissionUnavailable`.
+
+La lección, que vale más que la corrección: aplacé una pieza mirando su utilidad presente en
+vez de mirar la regla que la exige. «Hoy no hace falta» y «hoy no se puede verificar la regla
+sin ella» son cosas distintas.
+
+`batuta-plugin` **sí** se queda para después: `parser = "plain_text"` basta para los dos
+proveedores que existen, medido, y la ABI C espera a que haya un transporte que la necesite.
+Ahí el argumento sí se sostiene, porque ninguna regla queda sin comprobar por no tenerlo.
 
 **El hito se parte en dos, y el primero no necesita worktree:**
 
@@ -129,6 +140,49 @@ falta. Si algún día hiciera falta, el benchmark de la Fase 4 lo dirá antes.
 
 ---
 
+## §3 bis Los leases: admisión por evidencia
+
+Dos espacios de nombres, como pide la arquitectura: **por modelo** y **por repositorio**. Un
+encargo toma los dos. **La inspección no toma ninguno**, y de ahí sale R9 gratis: leer el
+directorio de leases es una lectura normal, así que `inventory` no puede hacer cola detrás
+de una delegación. Dos `orchestrator_inventory` se fueron a segundo plano tras 120 s por
+eso exactamente.
+
+**Adquisición:** creación exclusiva (`O_EXCL`) de `<state>/leases/<espacio>/<clave>.lease`.
+Quien pierde la carrera **no espera**: recibe `AdmissionUnavailable` nombrando al dueño
+actual. El sistema viejo daba el error sin decir quién lo tenía, que es la mitad inútil del
+mensaje.
+
+**El contenido del lease es la prueba de vida de su dueño:**
+
+```
+task_id · pid · pgid · process_start_time · adquirido_en
+```
+
+### Caducidad por evidencia, nunca por antigüedad
+
+Un lease se reclama **sólo si se puede demostrar que su dueño ya no existe**: el par
+`(pid, process_start_time)` leído de `/proc/<pid>/stat` no coincide con el anotado.
+
+Merece subrayarse porque dsh, ante el mismo problema, decidió lo contrario: *«a contender
+times out without removing the existing lock because age cannot distinguish a crashed owner
+from a paused live writer; orphan recovery is an operator action»*
+(`dsh-settings-file/README.md`). **Tienen razón sobre la antigüedad**, y por eso batuta no
+la usa. Usa una comprobación que sí distingue las dos cosas, y `process_start_time` cierra
+el hueco de la reutilización de PID.
+
+Es la doctrina de R3 aplicada a la admisión: no se decide por heurística, se decide mirando
+el hecho.
+
+**Liberación:** al soltar el guardián, y por muerte del dueño. Como el hijo corre en su
+propio grupo de procesos y `killpg` lo mata entero, matar la tarea deja el lease
+demostrablemente huérfano y el siguiente lo reclama sin intervención de nadie.
+
+**Aviso de portabilidad:** `/proc` es de Linux. La prueba de vida vive en un módulo propio
+para que el día que importe se sustituya en un solo sitio.
+
+---
+
 ## §4 El canario, observacional
 
 `expect = "token_echo"`: se genera un token irrepetible, se pide que lo devuelva exacto, y
@@ -153,9 +207,11 @@ Binario:
 3. `batuta canary --provider abacus` ejecuta ZAI GLM 5.3 Flash. **El segundo manifiesto es
    donde se descubre si la abstracción aguanta**, y cierra el fallo que originó el proyecto
    sin haber parcheado el núcleo.
-4. Matar la tarea deja **cero** procesos hijos (`pgrep -P`).
-5. Un fichero de corrida que cayera dentro del worktree se rechaza antes de ejecutar.
-6. `bash scripts_ci/local_gates.sh` en código 0.
+4. **R6 completo:** matar la tarea deja **cero** procesos hijos (`pgrep -P`) **y cero
+   leases**. Las dos mitades, porque la regla tiene dos mitades.
+5. **R9:** listar los leases con una corrida de 60 s en curso responde al instante.
+6. Un fichero de corrida que cayera dentro del worktree se rechaza antes de ejecutar.
+7. `bash scripts_ci/local_gates.sh` en código 0.
 
 El punto 2 es el que más importa y el que no estaba en el brief: es la única forma de
 demostrar que el recibo no miente.
