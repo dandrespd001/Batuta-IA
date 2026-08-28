@@ -25,8 +25,15 @@ pub enum Verdict {
 
 /// Por qué un recibo sale en rojo.
 ///
-/// Son los cinco sitios donde una corrida puede fallar, más los dos que sólo se
-/// ven después. Cada uno tiene mensaje propio: «falló» no es un diagnóstico.
+/// Cinco se ven **durante** la corrida —no se resolvió el ejecutable, el binario
+/// no era el fijado, el proceso salió mal, el canario no devolvió su token, la
+/// procedencia no se pudo leer— y tres sólo **después**, comparando lo que la
+/// máquina anotó con lo que el encargo declaraba: modelo distinto del pedido,
+/// herramienta no declarada, y rutas fuera de la allowlist.
+///
+/// Cada uno tiene mensaje propio, y `tests/mensajes.rs` fija qué debe nombrar
+/// cada uno: «falló» no es un diagnóstico, y `"Harness worker failed with exit
+/// 1"` es exactamente el mensaje que costó días.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub enum RedReason {
     /// Ninguna ruta de `resolve` dio un ejecutable. Es R1 llegando tarde.

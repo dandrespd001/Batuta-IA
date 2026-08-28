@@ -280,9 +280,15 @@ respondió. `auth = "oauth_cli"` sigue describiendo a dsh: batuta no aporta ning
    directo: hay un enlace en `node_modules/.bin/dsh` → `@deepseek-ai/dsh/lib/bin.js`. Como
    R4 mete stderr íntegro en el recibo, un canario con `npx` de por medio no lo vería vacío
    nunca. **`program` apunta al enlace, no a `npx`.**
-2. **Cada corrida deja dos sesiones en disco**, no una: la del encargo y la que genera el
-   título (`session-title-first-prompt-llm`). El barrido de sesiones tendrá que contar con
-   ello.
+2. **Cada corrida deja una sesión en disco.** Aquí se afirmó lo contrario —«dos: la del
+   encargo y la del título»— y era falso: el generador de título trabaja **dentro** de la
+   misma sesión, y por eso aparece en el registro como un `provider` distinto pero no como
+   un directorio aparte. Comprobado en dos delegaciones reales, una sesión cada una.
+
+   Lo que sí se sostiene es la consecuencia práctica: **identificar la sesión de una corrida
+   por instantánea antes/después**, y no por «la más reciente». Un directorio de proyecto
+   acumula las sesiones de todos los intentos, y hubo un caso con dos sesiones bajo el mismo
+   `cwd` que no supe explicar. La instantánea es inmune a eso; «la más reciente» no.
 
 ### Contradicciones entre README y código, encontradas de paso
 
