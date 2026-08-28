@@ -4,6 +4,7 @@
 //! más tarde, cuando el MCP y la línea de órdenes tengan que compartirlo: dos
 //! procesos que no coinciden en dónde están los leases no se excluyen entre sí,
 //! y la admisión deja de admitir nada.
+// generado: deepseek-v4-flash - revisado: Arquitecto
 
 use std::path::{Path, PathBuf};
 
@@ -30,7 +31,21 @@ impl Layout {
     ///
     /// Si no hay ni `XDG_STATE_HOME` ni `HOME`, que es no tener dónde escribir.
     pub fn from_env() -> std::io::Result<Self> {
-        todo!()
+        // `var_os` y no `var`: una ruta puede ser bytes no-UTF-8 válidos, y
+        // rechazarla por eso sería negarse a funcionar donde el usuario sí tiene
+        // dónde escribir.
+        if let Some(estado) = std::env::var_os("XDG_STATE_HOME")
+            && !estado.is_empty()
+        {
+            return Ok(Self::under(PathBuf::from(estado).join("batuta")));
+        }
+        if let Some(home) = std::env::var_os("HOME") {
+            return Ok(Self::under(PathBuf::from(home).join(".local/state/batuta")));
+        }
+        Err(std::io::Error::new(
+            std::io::ErrorKind::NotFound,
+            "no hay ni $XDG_STATE_HOME ni $HOME: no hay dónde escribir el estado de batuta",
+        ))
     }
 
     /// La raíz.

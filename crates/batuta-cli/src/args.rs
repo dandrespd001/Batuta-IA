@@ -3,6 +3,7 @@
 //! Sin `clap`. Una sola orden no justifica la dependencia —R2: nada se declara,
 //! se demuestra— y lo que hay cabe en cuarenta líneas. Se añadirá cuando
 //! escribirlo a mano sea peor que depender de ello, y no antes.
+// generado: deepseek-v4-flash - revisado: Arquitecto
 
 use crate::error::CliError;
 
@@ -61,7 +62,58 @@ SALIDA
 /// [`CliError::MissingFlag`] o [`CliError::UnknownFlag`]. Todos enumeran lo
 /// válido.
 pub fn parse(args: &[String]) -> Result<Command, CliError> {
-    // Fase roja: el parámetro es el contrato, no sobra.
-    let _ = args;
-    todo!()
+    let Some(primera) = args.first() else {
+        return Ok(Command::Help);
+    };
+
+    match primera.as_str() {
+        "help" | "--help" | "-h" => Ok(Command::Help),
+        "canary" => parsear_canary(&args[1..]),
+        otra => Err(CliError::UnknownCommand {
+            given: otra.to_string(),
+            available: COMMANDS.to_vec(),
+        }),
+    }
+}
+
+/// Los argumentos de `canary`, después de la orden.
+///
+/// Bandera por bandera: cada una coge el siguiente argumento como valor, y un
+/// valor que empiece por `--` no es un valor sino una bandera que vino sin el
+/// suyo. Todo lo demás —una bandera desconocida o un argumento suelto— es un
+/// `UnknownFlag` que enumera lo admitido (R8).
+fn parsear_canary(args: &[String]) -> Result<Command, CliError> {
+    let mut provider: Option<String> = None;
+    let mut model: Option<String> = None;
+
+    let mut indice = 0;
+    while indice < args.len() {
+        let argumento = &args[indice];
+        if CANARY_FLAGS.contains(&argumento.as_str()) {
+            let Some(valor) = args.get(indice + 1) else {
+                return Err(CliError::MissingValue {
+                    flag: argumento.clone(),
+                });
+            };
+            if valor.starts_with("--") {
+                return Err(CliError::MissingValue {
+                    flag: argumento.clone(),
+                });
+            }
+            if argumento == "--provider" {
+                provider = Some(valor.clone());
+            } else {
+                model = Some(valor.clone());
+            }
+            indice += 2;
+        } else {
+            return Err(CliError::UnknownFlag {
+                given: argumento.clone(),
+                available: CANARY_FLAGS.to_vec(),
+            });
+        }
+    }
+
+    let provider = provider.ok_or(CliError::MissingFlag { flag: "--provider" })?;
+    Ok(Command::Canary { provider, model })
 }
