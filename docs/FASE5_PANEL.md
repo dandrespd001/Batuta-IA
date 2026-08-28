@@ -149,13 +149,18 @@ con criterio binario, y verificación de los comandos en esta máquina antes de 
       cuatro literales medidos — cierra el hueco de precondición inerte: nada usa `{reasoning_effort}`
       todavía, así que la carga no comprueba los *valores* del mapa, sólo que esté completo
 
-### T2 · `batuta-policy`: el fichero de elección
-- [ ] Crate nuevo. **No depende de `batuta-exec`** (R3), y hay un test que lee el `Cargo.toml`
-- [ ] `Politica::{cargar, guardar}` sobre `~/.local/state/batuta/politica.toml`
-- [ ] Por modelo: `habilitado: bool` y `esfuerzo: Option<ReasoningEffort>`
-- [ ] **Cero `Default`** (R13): un campo que nadie fija no compila
-- [ ] Un modelo que la política no menciona: decidir **una vez** si nace activo o apagado, y que el fichero lo diga por escrito
-- [ ] Test: guardar y volver a cargar da lo mismo (ida y vuelta)
+### T2 · `batuta-policy`: el fichero de elección — **hecho** (`2e4d60b`)
+- [x] Crate nuevo. **No depende de `batuta-exec`** (R3), y hay un test que lee el `Cargo.toml`
+      (`la_politica_no_depende_de_quien_mide`; sólo depende de `batuta-contract`)
+- [x] `Politica::{cargar, guardar}` sobre una ruta explícita (`~/.local/state/batuta/politica.toml`
+      es decisión de `Layout`, en `batuta-cli` — T2 no la fija, la recibe)
+- [x] Por modelo: `habilitado: bool` y `esfuerzo: Option<ReasoningEffort>`
+- [x] **Cero `Default`** (R13): un campo que nadie fija no compila
+- [x] Un modelo que la política no menciona: decidir **una vez** si nace activo o apagado, y que el fichero lo diga por escrito.
+      Decisión: **nace apagado** (misma disciplina que R5 en el entorno), documentada en el doc de módulo de `Politica`
+- [x] Test: guardar y volver a cargar da lo mismo (ida y vuelta)
+- [x] *(no estaba en la lista)* `schema_version` con `SchemaVersion::require_supported` (R1), y tests de
+      entrada incompleta / versión no soportada / política recién estrenada sin modelos
 
 ### T3 · `batuta-store`: la evidencia, consultable
 - [ ] `ReceiptStore::{open, latest_green}` sobre el directorio de recibos que ya existe
