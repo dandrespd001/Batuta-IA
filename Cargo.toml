@@ -5,6 +5,7 @@ members = [
     "crates/batuta-manifest",
     "crates/batuta-receipt",
     "crates/batuta-lease",
+    "crates/batuta-exec",
 ]
 
 [workspace.package]

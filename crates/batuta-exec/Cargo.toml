@@ -1,0 +1,19 @@
+[package]
+name = "batuta-exec"
+description = "Ejecución supervisada: sustitución, materialización, árbol de procesos y procedencia observada."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+batuta-contract = { path = "../batuta-contract" }
+batuta-manifest = { path = "../batuta-manifest" }
+batuta-receipt = { path = "../batuta-receipt" }
+batuta-lease = { path = "../batuta-lease" }
+serde = { workspace = true, features = ["std"] }
+serde_json = { workspace = true }
+toml = { workspace = true }
+
+[lints]
+workspace = true
