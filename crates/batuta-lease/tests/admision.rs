@@ -183,3 +183,94 @@ fn soltar_el_guardian_libera_el_lease() {
         .acquire(LeaseSpace::Model, "modelo-w", "encargo-2")
         .expect("y otro puede tomarlo");
 }
+
+/// **El caso que cerraba mal la pinza.**
+///
+/// Los dos tests de arriba plantan leases viejos, así que una implementación que
+/// reclamara sólo si «viejo Y muerto» los pasaría los dos — y sería exactamente
+/// la que la regla prohíbe. Aquí el dueño está muerto y el lease es **reciente**:
+/// tiene que reclamarse igual, porque la antigüedad no entra en la decisión.
+#[test]
+fn un_lease_reciente_con_dueno_muerto_tambien_se_reclama() {
+    let (store, _raiz) = almacen("reciente-muerto");
+
+    let difunto = std::process::Command::new("/bin/true")
+        .spawn()
+        .expect("lanzar");
+    let pid = difunto.id();
+    let mut difunto = difunto;
+    difunto.wait().expect("esperar");
+
+    let ahora = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .expect("reloj")
+        .as_secs();
+
+    plantar(
+        &store,
+        LeaseSpace::Model,
+        "modelo-recien-muerto",
+        Owner {
+            pid,
+            pgid: pid,
+            start_time: 1,
+        },
+        ahora,
+    );
+
+    store
+        .acquire(LeaseSpace::Model, "modelo-recien-muerto", "encargo-nuevo")
+        .expect("el dueño murió: la antigüedad no cuenta en ninguna dirección");
+}
+
+/// Dos repositorios distintos no pueden compartir lease por culpa de la
+/// normalización de la clave.
+///
+/// Es la trampa del `projectKey` de dsh, que su propia documentación llama
+/// *«intentionally lossy»*: convertir barras en guiones hace colisionar
+/// `/tmp/repo/a` con `/tmp/repo-a`. Allí el daño es que dos proyectos comparten
+/// carpeta de sesiones; aquí sería que dos repositorios comparten exclusión, y
+/// entonces un encargo bloquea a otro que no tiene nada que ver con él.
+#[test]
+fn dos_claves_que_se_parecen_no_colisionan() {
+    let (store, _raiz) = almacen("colision");
+
+    let _uno = store
+        .acquire(LeaseSpace::Repository, "/tmp/repo/a", "encargo-1")
+        .expect("el primero");
+
+    let dos = store.acquire(LeaseSpace::Repository, "/tmp/repo-a", "encargo-2");
+
+    assert!(
+        dos.is_ok(),
+        "'/tmp/repo/a' y '/tmp/repo-a' son repositorios distintos y no pueden \
+         compartir lease: {:?}",
+        dos.err()
+    );
+    assert_ne!(
+        store.path_for(LeaseSpace::Repository, "/tmp/repo/a"),
+        store.path_for(LeaseSpace::Repository, "/tmp/repo-a"),
+        "la normalización de claves pierde información"
+    );
+}
+
+/// Un lease ilegible **no es un lease libre**.
+///
+/// Es la misma disciplina que con la procedencia: «no pude leerlo» y «no hay
+/// nada» son cosas distintas. Reclamar un fichero que no se entiende sería
+/// decidir sin mirar.
+#[test]
+fn un_lease_corrupto_no_se_toma_por_libre() {
+    let (store, _raiz) = almacen("corrupto");
+    let ruta = store.path_for(LeaseSpace::Model, "modelo-roto");
+    fs::create_dir_all(ruta.parent().expect("tiene padre")).expect("crear directorio");
+    fs::write(&ruta, b"esto no es json").expect("escribir basura");
+
+    let error = store
+        .acquire(LeaseSpace::Model, "modelo-roto", "encargo-nuevo")
+        .expect_err("un lease ilegible no se sobrescribe alegremente");
+    assert!(
+        matches!(error, LeaseError::Corrupt { .. }),
+        "se esperaba Corrupt: {error:?}"
+    );
+}
