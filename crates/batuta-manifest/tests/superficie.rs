@@ -148,3 +148,41 @@ fn el_parser_de_los_dos_es_texto_plano() {
         assert_eq!(cargar(nombre).parser(), ParserKind::PlainText, "{nombre}");
     }
 }
+
+/// El recibo lleva **qué manifiesto** gobernó la corrida y **con qué bytes**.
+///
+/// Sin la segunda mitad, editar un manifiesto invalida en silencio todos los
+/// recibos anteriores sin que ninguno se entere: dirían `dsh.toml` y nadie podría
+/// saber cuál. El resumen es del texto de origen, no del binario del proveedor —
+/// son dos cosas distintas y el recibo lleva las dos.
+#[test]
+fn un_manifiesto_dice_de_donde_viene_y_con_que_bytes() {
+    for nombre in ["dsh.toml", "abacus.toml"] {
+        let manifiesto = cargar(nombre);
+
+        assert!(
+            manifiesto.origin().ends_with(nombre),
+            "{nombre}: origen {:?}",
+            manifiesto.origin()
+        );
+        assert_eq!(
+            manifiesto.source_sha256().len(),
+            64,
+            "{nombre}: resumen mal formado"
+        );
+        assert!(
+            manifiesto
+                .source_sha256()
+                .chars()
+                .all(|c| c.is_ascii_hexdigit() && !c.is_ascii_uppercase()),
+            "{nombre}: el resumen se escribe en hexadecimal minúsculo"
+        );
+    }
+
+    // Dos manifiestos distintos no comparten resumen, o el resumen no distingue
+    // nada.
+    assert_ne!(
+        cargar("dsh.toml").source_sha256(),
+        cargar("abacus.toml").source_sha256()
+    );
+}

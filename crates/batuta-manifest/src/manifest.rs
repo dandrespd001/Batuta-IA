@@ -91,6 +91,7 @@ pub struct Canary {
 #[derive(Debug, Clone, PartialEq)]
 pub struct ProviderManifest {
     origin: PathBuf,
+    source_sha256: String,
     schema_version: SchemaVersion,
     id: ProviderId,
     kind: ProviderKind,
@@ -319,6 +320,7 @@ impl ProviderManifest {
 
         Ok(ProviderManifest {
             origin: origin.to_path_buf(),
+            source_sha256: sha256_texto(source),
             schema_version,
             id,
             kind,
@@ -418,6 +420,24 @@ impl ProviderManifest {
             program: self.executable.program.clone(),
             tried,
         })
+    }
+
+    /// De dónde se cargó.
+    ///
+    /// El recibo lo lleva: un recibo que no nombra su manifiesto no se puede
+    /// reproducir.
+    pub fn origin(&self) -> &Path {
+        &self.origin
+    }
+
+    /// El `sha256` del **texto** del manifiesto.
+    ///
+    /// No es el del binario del proveedor —ése lo lleva [`Executable::sha256`]—
+    /// sino el de las reglas que gobernaron la corrida. Sin él, editar un
+    /// manifiesto invalida en silencio todos los recibos anteriores sin que
+    /// ninguno se entere.
+    pub fn source_sha256(&self) -> &str {
+        &self.source_sha256
     }
 
     /// Identificador del proveedor.
@@ -899,21 +919,37 @@ fn is_executable(path: &Path) -> bool {
 /// proveedor puede ocupar megabytes y no hay razón para tenerlo dos veces en
 /// memoria.
 fn sha256_hex(path: &Path) -> std::io::Result<String> {
-    use std::fmt::Write as _;
-
     use sha2::{Digest, Sha256};
 
     let mut fichero = std::fs::File::open(path)?;
     let mut resumen = Sha256::new();
     std::io::copy(&mut fichero, &mut resumen)?;
 
-    Ok(resumen
-        .finalize()
+    Ok(hexadecimal(&resumen.finalize()))
+}
+
+/// El resumen del texto de un manifiesto.
+///
+/// Se calcula sobre lo que se interpretó, no sobre lo que hay en disco: un
+/// manifiesto que se cargó y luego se editó tiene que seguir identificado por los
+/// bytes que de verdad gobernaron la corrida.
+fn sha256_texto(source: &str) -> String {
+    use sha2::{Digest, Sha256};
+
+    hexadecimal(&Sha256::digest(source.as_bytes()))
+}
+
+/// Hexadecimal minúsculo, que es como se escriben los resúmenes en todo el
+/// proyecto y como los espera el manifiesto al comparar.
+fn hexadecimal(bytes: &[u8]) -> String {
+    use std::fmt::Write as _;
+
+    bytes
         .iter()
-        .fold(String::with_capacity(64), |mut hex, byte| {
+        .fold(String::with_capacity(bytes.len() * 2), |mut hex, byte| {
             let _ = write!(hex, "{byte:02x}");
             hex
-        }))
+        })
 }
 
 impl Executable {
