@@ -162,13 +162,17 @@ con criterio binario, y verificación de los comandos en esta máquina antes de 
 - [x] *(no estaba en la lista)* `schema_version` con `SchemaVersion::require_supported` (R1), y tests de
       entrada incompleta / versión no soportada / política recién estrenada sin modelos
 
-### T3 · `batuta-store`: la evidencia, consultable
-- [ ] `ReceiptStore::{open, latest_green}` sobre el directorio de recibos que ya existe
-- [ ] Invalidación por `manifest_sha256`: editar el manifiesto invalida sus recibos **sin que nadie tenga que acordarse**
-- [ ] TTL **declarado y visible**, no constante mágica; el «caducado» dice cuándo caducó
-- [ ] Test: un recibo de otro `manifest_sha256` no cuenta
-- [ ] Test: R9 — leer no toma cerrojo, y el aserto es de tiempo
-- [ ] Un recibo ilegible **no** es un recibo ausente
+### T3 · `batuta-store`: la evidencia, consultable — **hecho** (`dbf6ab3`)
+- [x] `ReceiptStore::{open, latest_green}` sobre el directorio de recibos que ya existe
+- [x] Invalidación por `manifest_sha256`: editar el manifiesto invalida sus recibos **sin que nadie tenga que acordarse**
+      (el hash no coincide, y ese desacuerdo es la invalidación entera)
+- [x] TTL **declarado y visible**, no constante mágica; el «caducado» dice cuándo caducó
+      (`DEFAULT_TTL` público de 24h, documentado; `LatestGreen::Expired { at }` es el instante exacto)
+- [x] Test: un recibo de otro `manifest_sha256` no cuenta
+- [x] Test: R9 — leer no toma cerrojo, y el aserto es de tiempo (200 recibos, `Instant`/`elapsed` < 1s)
+- [x] Un recibo ilegible **no** es un recibo ausente (`Lookup::unreadable`, separado del resultado)
+- [x] *(no estaba en la lista)* `Receipt` gana `Deserialize` (antes sólo `Serialize`): es el único sitio
+      donde deserializar un recibo está permitido, porque lee lo que `Receipt::seal` ya selló
 
 ### T4 · `batuta panel`: la tabla
 - [ ] Une las tres capas: declaración, evidencia y elección
