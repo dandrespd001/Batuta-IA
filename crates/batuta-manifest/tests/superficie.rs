@@ -186,3 +186,38 @@ fn un_manifiesto_dice_de_donde_viene_y_con_que_bytes() {
         cargar("abacus.toml").source_sha256()
     );
 }
+
+/// El manifiesto discrepante **carga bien**, y eso es lo que se prueba.
+///
+/// Su error no es de forma: es que su documento de settings fija un modelo y su
+/// `[[models]]` pide otro. Ninguna validación estática puede verlo —el documento
+/// de settings es texto opaco para batuta, que es justo por lo que hizo falta
+/// leer la procedencia—, así que tiene que pasar la carga y morir en el recibo.
+///
+/// Si algún día falla al cargar, el criterio 2 de la Fase 3 se queda sin la
+/// única prueba de que el recibo no miente.
+#[test]
+fn el_manifiesto_discrepante_carga_sin_quejarse_porque_su_error_no_es_de_forma() {
+    let ruta = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../pruebas/discrepante/dsh.toml");
+    let manifiesto =
+        ProviderManifest::load(&ruta).expect("tiene que cargar: su error no es de forma");
+
+    assert_eq!(manifiesto.models().len(), 1);
+    assert_eq!(
+        manifiesto.models()[0].route_model().as_str(),
+        "deepseek-v4-flash",
+        "lo que batuta pide"
+    );
+
+    // Y su documento de settings fija otro, que es toda la trampa.
+    let settings = manifiesto
+        .runtime_files()
+        .iter()
+        .find(|f| f.path().ends_with("settings.yaml"))
+        .expect("el documento de settings");
+    let texto = format!("{:?}", settings.document());
+    assert!(
+        texto.contains("MiniMax-M2.7"),
+        "el documento tiene que fijar el modelo equivocado: {texto}"
+    );
+}
