@@ -15,7 +15,7 @@ use std::process::ExitCode;
 
 use batuta_cli::{
     CanaryOutcome, Command, Layout, USAGE, canary, canary_all, disable, effort, enable, filas,
-    parse, tabla,
+    nuevo_modelo, nuevo_proveedor, parse, quitar_modelo_de, tabla,
 };
 
 fn main() -> ExitCode {
@@ -43,6 +43,13 @@ fn main() -> ExitCode {
                 effort(p, l, &model_ref, &level)
             })
         }
+        Ok(Command::NuevoProveedor { id }) => ejecutar_nuevo_proveedor(&id),
+        Ok(Command::NuevoModelo {
+            provider,
+            id,
+            route_model,
+        }) => ejecutar_nuevo_modelo(&provider, &id, &route_model),
+        Ok(Command::QuitarModelo { model_ref }) => ejecutar_quitar_modelo(&model_ref),
         Err(e) => {
             eprintln!("batuta: {e}");
             eprintln!("\n{USAGE}");
@@ -51,19 +58,22 @@ fn main() -> ExitCode {
     }
 }
 
-/// El estado y el directorio de manifiestos, resueltos una vez.
+/// Dónde están los manifiestos.
 ///
-/// Los manifiestos van junto al ejecutable en el repositorio; se pueden mover
-/// con `BATUTA_PROVIDERS`, que es lo que usan las pruebas de integración y lo
-/// que hará falta cuando batuta se instale fuera de su propio árbol.
+/// Van junto al ejecutable en el repositorio; se pueden mover con
+/// `BATUTA_PROVIDERS`, que es lo que usan las pruebas de integración y lo que
+/// hará falta cuando batuta se instale fuera de su propio árbol.
+fn providers_dir() -> PathBuf {
+    std::env::var_os("BATUTA_PROVIDERS").map_or_else(|| PathBuf::from("providers"), Into::into)
+}
+
+/// El estado y el directorio de manifiestos, resueltos una vez.
 fn entorno() -> Result<(Layout, PathBuf), ExitCode> {
     let disposicion = Layout::from_env().map_err(|e| {
         eprintln!("batuta: no hay dónde guardar el estado: {e}");
         ExitCode::from(2)
     })?;
-    let proveedores =
-        std::env::var_os("BATUTA_PROVIDERS").map_or_else(|| PathBuf::from("providers"), Into::into);
-    Ok((disposicion, proveedores))
+    Ok((disposicion, providers_dir()))
 }
 
 fn ejecutar_canario(proveedor: &str, modelo: Option<&str>, todos: bool) -> ExitCode {
@@ -126,6 +136,53 @@ fn ejecutar_eleccion(
     match accion(&proveedores, &disposicion) {
         Ok(()) => {
             println!("{orden} {model_ref}");
+            ExitCode::SUCCESS
+        }
+        Err(e) => {
+            eprintln!("batuta: {e}");
+            ExitCode::from(2)
+        }
+    }
+}
+
+/// `nuevo-proveedor`: escribe la plantilla y confirma dónde quedó.
+///
+/// No necesita `Layout`: `nuevo-proveedor` sólo toca `providers/`, nunca el
+/// estado (§1 — Declaración y Elección no se mezclan).
+fn ejecutar_nuevo_proveedor(id: &str) -> ExitCode {
+    match nuevo_proveedor(&providers_dir(), id) {
+        Ok(destino) => {
+            println!("nuevo-proveedor {id} → {}", destino.display());
+            ExitCode::SUCCESS
+        }
+        Err(e) => {
+            eprintln!("batuta: {e}");
+            ExitCode::from(2)
+        }
+    }
+}
+
+/// `nuevo-modelo`: añade el modelo y confirma.
+fn ejecutar_nuevo_modelo(provider: &str, id: &str, route_model: &str) -> ExitCode {
+    match nuevo_modelo(&providers_dir(), provider, id, route_model) {
+        Ok(()) => {
+            println!("nuevo-modelo {provider}/{id}");
+            ExitCode::SUCCESS
+        }
+        Err(e) => {
+            eprintln!("batuta: {e}");
+            ExitCode::from(2)
+        }
+    }
+}
+
+/// `quitar-modelo`: imprime el bloque que borró. El checklist de T6 lo exige
+/// literalmente — es la única forma honesta de borrar de un fichero cuyos
+/// comentarios llevan mediciones reales.
+fn ejecutar_quitar_modelo(model_ref: &str) -> ExitCode {
+    match quitar_modelo_de(&providers_dir(), model_ref) {
+        Ok(bloque) => {
+            println!("{bloque}");
             ExitCode::SUCCESS
         }
         Err(e) => {

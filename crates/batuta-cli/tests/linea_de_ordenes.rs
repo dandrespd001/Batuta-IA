@@ -255,3 +255,106 @@ fn effort_sin_nada_pide_la_referencia_primero() {
     let error = parse(&argumentos(&["effort"])).expect_err("falta todo");
     assert!(error.to_string().contains("proveedor"), "{error}");
 }
+
+/// T6 (`docs/FASE5_PANEL.md`) — `nuevo-proveedor <id>`: un solo posicional,
+/// sin bandera.
+#[test]
+fn nuevo_proveedor_toma_el_id() {
+    let orden = parse(&argumentos(&["nuevo-proveedor", "mi-proveedor"])).expect("orden correcta");
+    assert_eq!(
+        orden,
+        Command::NuevoProveedor {
+            id: "mi-proveedor".to_string(),
+        }
+    );
+}
+
+#[test]
+fn nuevo_proveedor_sin_id_lo_dice() {
+    let error = parse(&argumentos(&["nuevo-proveedor"])).expect_err("falta el id");
+    assert!(error.to_string().contains("id"), "{error}");
+}
+
+#[test]
+fn nuevo_proveedor_con_un_argumento_de_mas_lo_rechaza() {
+    let error = parse(&argumentos(&["nuevo-proveedor", "mi-proveedor", "sobra"]))
+        .expect_err("un argumento de más");
+    assert!(error.to_string().contains("sobra"), "{error}");
+}
+
+/// `nuevo-modelo <proveedor> <id> <ruta>`: tres posicionales.
+#[test]
+fn nuevo_modelo_toma_los_tres_posicionales() {
+    let orden = parse(&argumentos(&[
+        "nuevo-modelo",
+        "dsh",
+        "dsh-modelo-nuevo",
+        "Modelo Nuevo",
+    ]))
+    .expect("orden correcta");
+    assert_eq!(
+        orden,
+        Command::NuevoModelo {
+            provider: "dsh".to_string(),
+            id: "dsh-modelo-nuevo".to_string(),
+            route_model: "Modelo Nuevo".to_string(),
+        }
+    );
+}
+
+#[test]
+fn nuevo_modelo_sin_nada_pide_el_proveedor_primero() {
+    let error = parse(&argumentos(&["nuevo-modelo"])).expect_err("falta todo");
+    assert!(error.to_string().contains("proveedor"), "{error}");
+}
+
+#[test]
+fn nuevo_modelo_sin_id_lo_dice() {
+    let error = parse(&argumentos(&["nuevo-modelo", "dsh"])).expect_err("falta el id");
+    assert!(error.to_string().contains("id"), "{error}");
+}
+
+#[test]
+fn nuevo_modelo_sin_ruta_lo_dice() {
+    let error = parse(&argumentos(&["nuevo-modelo", "dsh", "modelo"])).expect_err("falta la ruta");
+    assert!(error.to_string().contains("ruta"), "{error}");
+}
+
+#[test]
+fn nuevo_modelo_con_un_argumento_de_mas_lo_rechaza() {
+    let error = parse(&argumentos(&[
+        "nuevo-modelo",
+        "dsh",
+        "modelo",
+        "Modelo",
+        "sobra",
+    ]))
+    .expect_err("un argumento de más");
+    assert!(error.to_string().contains("sobra"), "{error}");
+}
+
+/// `quitar-modelo <proveedor>/<modelo>`: un solo posicional, como
+/// `enable`/`disable`.
+#[test]
+fn quitar_modelo_toma_la_referencia_entera() {
+    let orden = parse(&argumentos(&["quitar-modelo", "dsh/dsh-deepseek-v4-flash"])).expect("orden");
+    assert_eq!(
+        orden,
+        Command::QuitarModelo {
+            model_ref: "dsh/dsh-deepseek-v4-flash".to_string(),
+        }
+    );
+}
+
+#[test]
+fn quitar_modelo_sin_referencia_lo_dice() {
+    let error = parse(&argumentos(&["quitar-modelo"])).expect_err("falta la referencia");
+    assert!(error.to_string().contains("proveedor"), "{error}");
+}
+
+#[test]
+fn quitar_modelo_con_un_argumento_de_mas_lo_rechaza() {
+    let error = parse(&argumentos(&["quitar-modelo", "dsh/modelo", "sobra"]))
+        .expect_err("un argumento de más");
+    assert!(error.to_string().contains("sobra"), "{error}");
+}

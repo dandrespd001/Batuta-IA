@@ -119,6 +119,62 @@ pub enum CliError {
         /// El proveedor.
         provider: String,
     },
+    /// `<id>` no valida como [`batuta_contract::ProviderId`].
+    InvalidProviderId {
+        /// Causa: ya enumera la regla (R8), lo hereda del identificador.
+        source: batuta_contract::IdentifierError,
+    },
+    /// `<id>` no valida como [`batuta_contract::ModelId`].
+    InvalidModelId {
+        /// Causa.
+        source: batuta_contract::IdentifierError,
+    },
+    /// `<ruta>` no valida como [`batuta_contract::RouteModel`].
+    InvalidRouteModel {
+        /// Causa.
+        source: batuta_contract::IdentifierError,
+    },
+    /// `nuevo-proveedor` sobre un id que ya tiene fichero en `providers/`.
+    ///
+    /// Nunca se sobrescribe un proveedor existente: quien quiera cambiar uno
+    /// edita el fichero a mano, que es exactamente la tesis de §1.
+    ProviderAlreadyExists {
+        /// El id pedido.
+        id: String,
+        /// Dónde ya existía.
+        path: PathBuf,
+    },
+    /// `nuevo-modelo` con un id que ese proveedor ya declara.
+    DuplicateModelId {
+        /// El proveedor.
+        provider: String,
+        /// El id repetido.
+        id: String,
+    },
+    /// `quitar-modelo` sobre el único modelo de un proveedor.
+    ///
+    /// Se comprueba **antes** de tocar el texto: dejar que lo detecte un
+    /// `NoModels` de `ManifestError` después de escribir hablaría de un fallo
+    /// de esquema, no de la razón real, y además habría que deshacer la
+    /// escritura. `disable` existe para esto — apagar no borra nada.
+    CannotRemoveLastModel {
+        /// El proveedor.
+        provider: String,
+    },
+    /// El modelo que ya se localizó en el manifiesto no se encontró al
+    /// escanear el texto para quitarlo.
+    ///
+    /// No debería poder pasar —si el modelo está en el manifiesto que acaba
+    /// de parsear, su bloque `[[models]]` está en ese mismo texto—, pero si
+    /// alguna forma de TOML que el escáner de texto no reconoce y el
+    /// analizador sí lo produce algún día, esto lo dice en vez de dejar que
+    /// un `panic!` tumbe el proceso.
+    ModelBlockNotFound {
+        /// El proveedor.
+        provider: String,
+        /// El modelo.
+        model: String,
+    },
     /// Un manifiesto del directorio no se pudo cargar.
     ///
     /// Un manifiesto irresoluble falla **al cargar**, no a mitad de una corrida
@@ -219,6 +275,26 @@ impl fmt::Display for CliError {
                 f,
                 "`{provider}` no declara ningún mapa de esfuerzo: pedirle un nivel no se puede honrar"
             ),
+            Self::InvalidProviderId { source }
+            | Self::InvalidModelId { source }
+            | Self::InvalidRouteModel { source } => write!(f, "{source}"),
+            Self::ProviderAlreadyExists { id, path } => write!(
+                f,
+                "ya existe un proveedor `{id}` en {}: nuevo-proveedor no sobrescribe nunca uno existente",
+                path.display()
+            ),
+            Self::DuplicateModelId { provider, id } => write!(
+                f,
+                "`{provider}` ya declara un modelo `{id}`: nuevo-modelo no admite ids repetidos"
+            ),
+            Self::CannotRemoveLastModel { provider } => write!(
+                f,
+                "`{provider}` sólo declara un modelo: quitarlo lo dejaría sin ninguno; usa `disable` en vez de borrar"
+            ),
+            Self::ModelBlockNotFound { provider, model } => write!(
+                f,
+                "`{provider}/{model}` está en el manifiesto pero su bloque no se encontró al escanear el texto (esto es un fallo interno de batuta, no del manifiesto)"
+            ),
             Self::Manifest { source } => write!(f, "{source}"),
             Self::Exec { source } => write!(f, "{source}"),
             Self::Policy { source } => write!(f, "{source}"),
@@ -232,6 +308,9 @@ impl std::error::Error for CliError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             Self::InvalidReasoningEffort { source } => Some(source),
+            Self::InvalidProviderId { source }
+            | Self::InvalidModelId { source }
+            | Self::InvalidRouteModel { source } => Some(source),
             Self::Manifest { source } => Some(source),
             Self::Exec { source } => Some(source),
             Self::Policy { source } => Some(source),

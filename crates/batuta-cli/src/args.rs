@@ -42,12 +42,43 @@ pub enum Command {
         /// El nivel pedido, todavía sin validar contra `ReasoningEffort`.
         level: String,
     },
+    /// Escribe una plantilla comentada en `providers/<id>.toml`. La capa de
+    /// **Declaración** (§1): un fichero, nunca un parche.
+    NuevoProveedor {
+        /// El id del proveedor nuevo, todavía sin validar contra `ProviderId`.
+        id: String,
+    },
+    /// Añade un `[[models]]` al final de `providers/<proveedor>.toml`.
+    NuevoModelo {
+        /// El proveedor al que se añade.
+        provider: String,
+        /// El id del modelo nuevo, todavía sin validar contra `ModelId`.
+        id: String,
+        /// El nombre que entiende el proveedor, todavía sin validar contra
+        /// `RouteModel`.
+        route_model: String,
+    },
+    /// Quita un modelo del manifiesto e imprime el bloque que borró.
+    QuitarModelo {
+        /// `<proveedor>/<modelo>`.
+        model_ref: String,
+    },
     /// La ayuda.
     Help,
 }
 
 /// Las órdenes que hay. El error de orden desconocida las enumera (R8).
-pub const COMMANDS: &[&str] = &["canary", "panel", "enable", "disable", "effort", "help"];
+pub const COMMANDS: &[&str] = &[
+    "canary",
+    "panel",
+    "enable",
+    "disable",
+    "effort",
+    "nuevo-proveedor",
+    "nuevo-modelo",
+    "quitar-modelo",
+    "help",
+];
 
 /// Las banderas de `canary` que llevan valor.
 pub const CANARY_FLAGS: &[&str] = &["--provider", "--model"];
@@ -72,6 +103,9 @@ USO
     batuta enable  <proveedor>/<modelo>
     batuta disable <proveedor>/<modelo>
     batuta effort  <proveedor>/<modelo> <nivel>
+    batuta nuevo-proveedor <id>
+    batuta nuevo-modelo <proveedor> <id> <ruta>
+    batuta quitar-modelo <proveedor>/<modelo>
     batuta help
 
 ÓRDENES
@@ -88,6 +122,14 @@ USO
     effort    Fija el nivel de esfuerzo de un modelo. Falla si su proveedor
               no declara ningún mapa de esfuerzo, en vez de guardar un valor
               que nunca se va a poder honrar.
+    nuevo-proveedor  Escribe una plantilla comentada en providers/<id>.toml.
+              No sobrescribe nunca un proveedor que ya exista.
+    nuevo-modelo     Añade un [[models]] al final de
+              providers/<proveedor>.toml. Nunca reescribe lo que ya había:
+              los comentarios previos sobreviven byte a byte.
+    quitar-modelo    Lo quita del manifiesto e imprime el bloque que borró.
+              Es la única forma honesta de borrar de un fichero cuyos
+              comentarios llevan mediciones reales.
 
 BANDERAS DE canary
     --provider <id>   El proveedor, tal como lo nombra su manifiesto.
@@ -112,7 +154,7 @@ SALIDA de canary
     1    salió rojo; el motivo se imprime (con --all: al menos uno)
     2    no llegó a haber veredicto; el motivo se imprime
 
-SALIDA de panel, enable, disable, effort
+SALIDA de panel, enable, disable, effort, nuevo-proveedor, nuevo-modelo, quitar-modelo
     0    se pudo hacer lo que se pidió
     2    no se pudo: el motivo se imprime
 ";
@@ -139,6 +181,10 @@ pub fn parse(args: &[String]) -> Result<Command, CliError> {
         "disable" => parsear_referencia(&args[1..], "disable")
             .map(|model_ref| Command::Disable { model_ref }),
         "effort" => parsear_effort(&args[1..]),
+        "nuevo-proveedor" => parsear_nuevo_proveedor(&args[1..]),
+        "nuevo-modelo" => parsear_nuevo_modelo(&args[1..]),
+        "quitar-modelo" => parsear_referencia(&args[1..], "quitar-modelo")
+            .map(|model_ref| Command::QuitarModelo { model_ref }),
         otra => Err(CliError::UnknownCommand {
             given: otra.to_string(),
             available: COMMANDS.to_vec(),
@@ -275,6 +321,51 @@ fn parsear_effort(args: &[String]) -> Result<Command, CliError> {
         }),
         [_, _, sobra, ..] => Err(CliError::UnexpectedArgument {
             command: "effort",
+            given: sobra.clone(),
+        }),
+    }
+}
+
+/// `nuevo-proveedor` lleva un único posicional: el id. Su forma se valida
+/// contra `ProviderId` más tarde, en `declaracion::nuevo_proveedor` —aquí
+/// sólo se cuenta cuántos argumentos llegaron, igual que en
+/// [`parsear_referencia`].
+fn parsear_nuevo_proveedor(args: &[String]) -> Result<Command, CliError> {
+    match args {
+        [id] => Ok(Command::NuevoProveedor { id: id.clone() }),
+        [] => Err(CliError::MissingArgument {
+            command: "nuevo-proveedor",
+            argument: "<id>",
+        }),
+        [_, sobra, ..] => Err(CliError::UnexpectedArgument {
+            command: "nuevo-proveedor",
+            given: sobra.clone(),
+        }),
+    }
+}
+
+/// `nuevo-modelo` lleva tres posicionales: proveedor, id y `route_model`.
+fn parsear_nuevo_modelo(args: &[String]) -> Result<Command, CliError> {
+    match args {
+        [provider, id, route_model] => Ok(Command::NuevoModelo {
+            provider: provider.clone(),
+            id: id.clone(),
+            route_model: route_model.clone(),
+        }),
+        [] => Err(CliError::MissingArgument {
+            command: "nuevo-modelo",
+            argument: "<proveedor>",
+        }),
+        [_provider] => Err(CliError::MissingArgument {
+            command: "nuevo-modelo",
+            argument: "<id>",
+        }),
+        [_provider, _id] => Err(CliError::MissingArgument {
+            command: "nuevo-modelo",
+            argument: "<ruta>",
+        }),
+        [_, _, _, sobra, ..] => Err(CliError::UnexpectedArgument {
+            command: "nuevo-modelo",
             given: sobra.clone(),
         }),
     }

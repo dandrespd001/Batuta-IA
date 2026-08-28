@@ -116,7 +116,7 @@ fn aplicar(
 /// [`CliError::MalformedModelRef`] si no lleva barra,
 /// [`CliError::UnknownProvider`] o [`CliError::UnknownModel`] si no existen —
 /// los dos enumeran lo que sí hay (R8), igual que `canary`.
-fn resolver<'a>(
+pub(crate) fn resolver<'a>(
     manifiestos: &'a [ProviderManifest],
     model_ref: &str,
 ) -> Result<(&'a ProviderManifest, &'a ModelEntry), CliError> {
