@@ -21,12 +21,43 @@ demás: **nada se declara, se demuestra.**
 | **0** | **Desbloqueo y medición del transporte** | **hecho** (`docs/medidas/`) |
 | **1** | **Workspace, `batuta-contract`, gates** | **hecho** |
 | **2** | **Manifiestos** | **hecho** |
-| 3 | Ejecución, plugins, recibos, leases | pendiente |
+| **3** | **Ejecución, recibos, leases y el CLI** | **hecho** (`docs/medidas/CANARIOS.md`) |
 | 4 | Política y benchmark | pendiente |
 | 5 | Superficies MCP y CLI | pendiente |
 | 6 | Convivencia y corte | pendiente |
 
-El primer beneficio real llega en la Fase 3, no al final.
+El primer beneficio real llega en la Fase 3, no al final. Y llegó: `batuta canary` corre
+contra dos proveedores reales y deja recibo. Los plugins de la Fase 3 original se aplazan
+—no hay todavía nada que un plugin resuelva mejor que un manifiesto—.
+
+## `batuta canary`
+
+```sh
+batuta canary --provider dsh --model dsh-deepseek-v4-flash
+batuta canary --provider abacus
+```
+
+La corrida más pequeña que demuestra que un proveedor responde. Genera un token
+irrepetible, pide que lo devuelva, y comprueba que **volvió ése** — nunca busca una
+subcadena en un juicio propio (R3). Toma los dos leases —por modelo y por repositorio—,
+materializa los ficheros de corrida **fuera** del worktree, lanza el proceso en su propio
+grupo, lee la procedencia del registro del proveedor y sella el recibo.
+
+Tres códigos de salida, no dos:
+
+| | |
+|---|---|
+| `0` | el canario salió verde |
+| `1` | salió **rojo**: hubo veredicto y es negativo. El motivo se imprime |
+| `2` | **no llegó a haber veredicto**. El motivo se imprime |
+
+La distinción entre el `1` y el `2` es la misma que el recibo hace entre «no lo pude leer»
+y «este proveedor no lo ofrece»: un canario rojo *es* una respuesta, y no haber llegado a
+preguntar no lo es.
+
+El estado vive en `$XDG_STATE_HOME/batuta` (o `~/.local/state/batuta`), con `leases/`,
+`recibos/` y `corridas/`. Es *state* y no *data* a propósito: un lease sincronizado a otra
+máquina describiría un proceso que allí no existe.
 
 ## Qué hay hoy
 
@@ -34,16 +65,34 @@ El primer beneficio real llega en la Fase 3, no al final.
 Cargo.toml                       workspace
 crates/batuta-contract/          tipos, errores y vocabularios cerrados. CERO E/S
 crates/batuta-manifest/          carga y validación de manifiestos
+crates/batuta-receipt/           el recibo, que DERIVA su veredicto de los hechos
+crates/batuta-lease/             admisión por leases, con caducidad por evidencia
+crates/batuta-exec/              sustitución, materialización, árbol de procesos, canario
+crates/batuta-cli/               el binario `batuta`
 providers/dsh.toml               DeepSeek Harness
 providers/abacus.toml            Abacus.AI — el proveedor que originó el proyecto
+pruebas/discrepante/dsh.toml     manifiesto deliberadamente equivocado: la prueba de
+                                 que el recibo no miente
 docs/ESQUEMA_MANIFIESTO.md       el esquema y su justificación
+docs/FASE3_EJECUCION.md          los siete criterios de la Fase 3, cerrados
 docs/medidas/DSH_HEADLESS.md     lo que se midió del transporte, con las corridas
 docs/medidas/DELEGACION_MANIFEST.md  la primera delegación real, verificada
+docs/medidas/CANARIOS.md         los canarios reales, con sus recibos sin editar
 scripts_ci/local_gates.sh        los gates permanentes
 .github/workflows/ci.yml         los mismos gates en CI
 ```
 
-`batuta-contract` no depende de ningún otro crate de batuta y todos dependerán de él.
+`batuta-contract` no depende de ningún otro crate de batuta y todos dependen de él.
+
+**Nadie puede escribir un recibo verde a mano.** `Receipt::seal` recibe los hechos de la
+corrida y **deriva** el veredicto de ellos, en el orden de la corrida: primero lo que
+impidió ejecutar, luego lo que salió mal al ejecutar, y sólo al final lo que se ve leyendo
+el registro. Un recibo que dijera «modelo equivocado» cuando el proceso ni arrancó estaría
+diagnosticando mal.
+
+**Un lease caduca por evidencia, nunca por antigüedad.** Se reclama sólo si se puede
+demostrar que su dueño murió, leyendo `(pid, start_time)` de `/proc`. El campo
+`acquired_at` no se consulta jamás.
 
 `batuta-manifest` valida en dos mitades a propósito: `parse()` es **pura** —vocabularios,
 formas, llaves, cobertura de mapas— y catorce de sus dieciocho pruebas corren sin tocar el

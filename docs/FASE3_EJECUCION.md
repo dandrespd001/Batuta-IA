@@ -195,23 +195,52 @@ se pudo leer. Cinco motivos, cinco mensajes.
 
 ---
 
-## §5 Criterio de aceptación
+## §5 Criterio de aceptación — **los siete, cerrados**
 
-Binario:
+Cada uno con la prueba concreta que lo cierra. Las medidas de los canarios reales están en
+[`docs/medidas/CANARIOS.md`](medidas/CANARIOS.md), con los recibos sin editar.
 
-1. `batuta canary --provider dsh --model deepseek-v4-flash` ejecuta y deja recibo con argv,
-   código de salida y stderr íntegro.
-2. El recibo anota `provider` y `model` **observados**, y no coinciden por casualidad: un
-   manifiesto que pida un modelo distinto del que el documento de settings fija produce
-   **recibo en rojo**.
-3. `batuta canary --provider abacus` ejecuta ZAI GLM 5.3 Flash. **El segundo manifiesto es
-   donde se descubre si la abstracción aguanta**, y cierra el fallo que originó el proyecto
-   sin haber parcheado el núcleo.
-4. **R6 completo:** matar la tarea deja **cero** procesos hijos (`pgrep -P`) **y cero
-   leases**. Las dos mitades, porque la regla tiene dos mitades.
-5. **R9:** listar los leases con una corrida de 60 s en curso responde al instante.
-6. Un fichero de corrida que cayera dentro del worktree se rechaza antes de ejecutar.
-7. `bash scripts_ci/local_gates.sh` en código 0.
+| # | Criterio | Cerrado por |
+|---|---|---|
+| 1 | Recibo con `argv`, código de salida y stderr íntegro | El canario real de dsh: `exit 0`, 2581 ms, token exacto, stderr vacío, y el `argv` sustituido entero en el recibo. `recibos/dsh-verde.json` |
+| 2 | **El recibo no miente**: modelo discrepante ⇒ rojo | `pruebas/discrepante/dsh.toml`: **exit 0**, token correcto, stderr vacío, y `Red(ProvenanceMismatch)`. `recibos/dsh-discrepante-rojo.json` |
+| 3 | `--provider abacus` corre sin tocar el núcleo | Verde con `model_confirmed: false`, cero `runtime_files`, cero líneas de núcleo cambiadas. `recibos/abacus-verde.json` |
+| 4 | **R6 completo**: cero hijos **y** cero leases | `el_canario_toma_los_leases_mientras_corre_los_suelta_al_acabar_y_no_estorba_a_quien_mira`, con el `dormilon` y una foto de PID antes/después |
+| 5 | **R9**: listar con una corrida viva | El mismo test: el aserto es de **tiempo** (`< 1 s`) con la corrida en curso, porque R9 es una promesa de latencia y no de forma |
+| 6 | Fichero de corrida dentro del worktree, rechazado antes | `un_directorio_de_corrida_dentro_del_worktree_se_rechaza_antes_de_escribir` y `los_ficheros_de_corrida_no_acaban_en_el_arbol_del_encargo` |
+| 7 | `bash scripts_ci/local_gates.sh` en código 0 | Los cuatro gates en verde; 144 tests en el workspace |
 
 El punto 2 es el que más importa y el que no estaba en el brief: es la única forma de
 demostrar que el recibo no miente.
+
+---
+
+## §6 Los tres fallos que la fase encontró, y cómo
+
+Ninguno lo encontró una corrida. Los tres salieron de preguntar **qué se compara con qué**,
+**qué se resuelve con qué**, y **qué llega a dónde** — y los tres habrían pasado
+desapercibidos hasta producir un resultado plausible y falso.
+
+**1 · El registro se comparaba contra el identificador equivocado.** `derive_verdict`
+contrastaba el registro de sesión con `model_requested`, que es el identificador de
+*batuta*. El registro sólo conoce el otro nombre: dsh llama `dsh-deepseek-v4-flash` a un
+modelo cuyo `route_model` es `deepseek-v4-flash`. Habría dado `ProvenanceMismatch` en
+**todas** las corridas de dsh, para siempre, acusando al proveedor de correr un modelo
+distinto cuando corría el correcto. El test viejo no lo veía porque ponía el mismo nombre
+en los dos sitios, que es el único caso que no ocurre en ningún manifiesto real.
+
+**2 · El canario resolvía el binario por su cuenta.** `run_canary` buscaba la primera
+entrada de `resolve` que fuera un fichero, en vez de usar `verify_executable`. Esa búsqueda
+no entiende `~` ni `$PATH`, y el `resolve` de dsh **empieza por `~`**: el canario habría
+fallado con «no se pudo lanzar», mandando a mirar al proveedor por un fallo de batuta. La
+resolución del manifiesto además comprueba el `sha256` (R11), que la propia no miraba.
+
+**3 · Un `argv` que no emitía el prompt.** `providers/abacus.toml` declaraba
+`prompt = { via = "argv" }` y su `argv` no llevaba `{prompt}` en ninguna posición. La
+llamada habría llegado a Abacus **sin tarea**, el proveedor habría contestado algo
+plausible, y el recibo lo habría sellado en verde. Es la forma exacta del fallo que originó
+el proyecto —algo declarado que nadie demuestra— reproducida dentro de su propio esquema.
+Ahora la carga lo rechaza (`ManifestError::PromptNeverDelivered`), y sólo cuando la entrega
+es `argv`: exigirlo con `stdin` sería exigir lo contrario de lo que el campo dice.
+
+Los tres arreglos entraron con su test primero, en rojo.
