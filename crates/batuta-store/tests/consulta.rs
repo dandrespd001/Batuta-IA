@@ -1,5 +1,6 @@
 //! T3 (`docs/FASE5_PANEL.md`) — la evidencia, consultable.
 
+use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant, SystemTime};
 
@@ -37,6 +38,7 @@ fn hechos(model_requested: &str, manifest_sha256: &str) -> RunFacts {
         )),
         expected_token: Some("PONG-7F3A9".to_string()),
         declared_tools: vec!["bash".to_string()],
+        demonstrated_capabilities: BTreeSet::new(),
         scope_violations: Vec::new(),
     }
 }

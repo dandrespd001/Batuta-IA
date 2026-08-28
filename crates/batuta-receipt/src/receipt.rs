@@ -7,12 +7,13 @@
 //!
 //! La regla que lo ordena todo: **el recibo anota lo observado, no lo pedido.**
 
+use std::collections::BTreeSet;
 use std::path::PathBuf;
 use std::time::Duration;
 
 use serde::{Deserialize, Serialize};
 
-use batuta_contract::ProvenanceSource;
+use batuta_contract::{Capability, ProvenanceSource};
 
 use crate::verdict::{RedReason, Verdict};
 
@@ -133,6 +134,12 @@ pub struct Receipt {
     /// dar verde —el transporte funciona— sin que nadie haya confirmado el
     /// modelo. Quien lea el recibo tiene que poder distinguirlo sin deducirlo.
     model_confirmed: bool,
+    /// Capacidades que esta corrida ejercitó y demostró positivamente.
+    ///
+    /// Los recibos anteriores a P4.1 no llevaban este campo: al leerlos, la
+    /// única interpretación honesta es el conjunto vacío, nunca «todas».
+    #[serde(default)]
+    demonstrated_capabilities: BTreeSet<Capability>,
     verdict: Verdict,
 }
 
@@ -214,6 +221,11 @@ impl Receipt {
     /// significa «funcionó», no «corrió el modelo que pedí».
     pub fn model_confirmed(&self) -> bool {
         self.model_confirmed
+    }
+
+    /// Capacidades que esta corrida ejercitó y demostró.
+    pub const fn demonstrated_capabilities(&self) -> &BTreeSet<Capability> {
+        &self.demonstrated_capabilities
     }
 
     /// El veredicto, con su motivo si es rojo.
@@ -301,6 +313,12 @@ pub struct RunFacts {
     pub expected_token: Option<String>,
     /// Herramientas que el encargo declaraba. Las demás, si se usan, son rojas.
     pub declared_tools: Vec<String>,
+    /// Capacidades que el escenario ejercitó y demostró positivamente.
+    ///
+    /// No son las que se pidieron ni las que el manifiesto promete. El canario
+    /// básico fija este conjunto vacío porque sólo prueba transporte y
+    /// procedencia.
+    pub demonstrated_capabilities: BTreeSet<Capability>,
     /// Rutas del diff fuera de la allowlist. Vacío si no hubo diff que mirar.
     pub scope_violations: Vec<String>,
 }
@@ -343,6 +361,7 @@ impl Receipt {
             expected_token: _,
             declared_tools: _,
             scope_violations: _,
+            demonstrated_capabilities,
         } = facts;
 
         // Confirmado sólo si había registro que leer, se leyó, **y nombra el
@@ -372,6 +391,7 @@ impl Receipt {
                 .expect("la duración de una corrida cabe en u64 milisegundos"),
             observed: observed.ok(),
             model_confirmed,
+            demonstrated_capabilities,
             verdict,
         }
     }

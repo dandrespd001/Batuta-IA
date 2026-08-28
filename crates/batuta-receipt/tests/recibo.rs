@@ -4,10 +4,11 @@
 //! verde no se declara, se concluye**. Nadie puede pasar un veredicto; `seal()`
 //! lo deriva de los hechos.
 
+use std::collections::BTreeSet;
 use std::path::PathBuf;
 use std::time::Duration;
 
-use batuta_contract::ProvenanceSource;
+use batuta_contract::{Capability, ProvenanceSource};
 use batuta_receipt::{MaterializedFile, ObservedProvenance, Receipt, RedReason, RunFacts};
 
 /// Una corrida que salió bien y cuya procedencia coincide con lo pedido.
@@ -41,6 +42,7 @@ fn hechos_buenos() -> RunFacts {
         )),
         expected_token: Some("PONG-7F3A9".to_string()),
         declared_tools: vec!["bash".to_string()],
+        demonstrated_capabilities: BTreeSet::new(),
         scope_violations: Vec::new(),
     }
 }
@@ -49,6 +51,44 @@ fn hechos_buenos() -> RunFacts {
 fn una_corrida_coherente_sale_verde() {
     let recibo = Receipt::seal(hechos_buenos());
     assert!(recibo.verdict().is_green(), "{:?}", recibo.verdict());
+}
+
+/// P4.1 (`docs/FASE4_POLITICA.md`) — una capacidad sólo puede influir en el
+/// enrutador si el recibo conserva que esta corrida la ejercitó y demostró.
+/// Sellar, serializar y leer de vuelta no pueden perder esa evidencia.
+#[test]
+fn las_capacidades_demostradas_sobreviven_al_sello_y_al_json() {
+    let mut hechos = hechos_buenos();
+    hechos.demonstrated_capabilities = BTreeSet::from([Capability::Read, Capability::Tools]);
+
+    let recibo = Receipt::seal(hechos);
+    assert_eq!(
+        recibo.demonstrated_capabilities(),
+        &BTreeSet::from([Capability::Read, Capability::Tools])
+    );
+
+    let json = recibo.to_json().expect("el recibo se serializa");
+    let releido: Receipt = serde_json::from_str(&json).expect("el recibo se relee");
+    assert_eq!(
+        releido.demonstrated_capabilities(),
+        &BTreeSet::from([Capability::Read, Capability::Tools])
+    );
+}
+
+/// Los recibos de Fase 3 no llevaban el campo. Leerlos sigue siendo posible,
+/// pero su ausencia significa «ninguna capacidad demostrada», no una concesión
+/// implícita que el enrutador pudiera gastar.
+#[test]
+fn un_recibo_anterior_sin_capacidades_se_lee_como_conjunto_vacio() {
+    let recibo = Receipt::seal(hechos_buenos());
+    let mut valor = serde_json::to_value(&recibo).expect("JSON intermedio");
+    valor
+        .as_object_mut()
+        .expect("el recibo es un objeto")
+        .remove("demonstrated_capabilities");
+
+    let anterior: Receipt = serde_json::from_value(valor).expect("recibo anterior compatible");
+    assert!(anterior.demonstrated_capabilities().is_empty());
 }
 
 /// La regla central de la fase.

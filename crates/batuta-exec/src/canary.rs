@@ -205,6 +205,9 @@ pub fn run_canary(
         observed: observada,
         expected_token,
         declared_tools: Vec::new(),
+        // El canario básico demuestra transporte y procedencia, no `read`,
+        // `write`, `tools` ni `web_research` (P4.1).
+        demonstrated_capabilities: BTreeSet::new(),
         scope_violations: Vec::new(),
     }))
 }

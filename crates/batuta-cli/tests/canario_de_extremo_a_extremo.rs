@@ -142,6 +142,11 @@ fn el_recibo_escrito_lleva_los_hechos_y_ningun_valor_de_entorno() {
     assert_eq!(valor["exit_code"], serde_json::json!(0));
     assert!(valor.get("stderr").is_some(), "sin stderr: {json}");
     assert_eq!(valor["env_names"], serde_json::json!(["HOME", "PATH"]));
+    assert_eq!(
+        valor["demonstrated_capabilities"],
+        serde_json::json!([]),
+        "el canario básico no demuestra capacidades de tarea: {json}"
+    );
 
     // La sonda es `PATH` y no `HOME` a propósito. El recibo lleva rutas de
     // fichero legítimas —el manifiesto, el worktree— y muchas caen bajo `$HOME`,
