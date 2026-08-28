@@ -14,7 +14,8 @@ use batuta_receipt::{MaterializedFile, ObservedProvenance, Receipt, RedReason, R
 fn hechos_buenos() -> RunFacts {
     RunFacts {
         provider: "dsh".to_string(),
-        model_requested: "deepseek-v4-flash".to_string(),
+        model_requested: "dsh-deepseek-v4-flash".to_string(),
+        route_model: "deepseek-v4-flash".to_string(),
         provenance_source: ProvenanceSource::SessionLog,
         manifest: PathBuf::from("providers/dsh.toml"),
         manifest_sha256: "a".repeat(64),
@@ -296,4 +297,60 @@ fn el_json_del_recibo_dice_si_el_modelo_quedo_confirmado() {
         "el recibo no dice si el modelo se pudo comprobar: {json}"
     );
     assert!(json.contains("false"), "{json}");
+}
+
+/// **El identificador de batuta y el nombre que el proveedor entiende son dos
+/// cosas, y el registro sólo conoce el segundo.**
+///
+/// El manifiesto de dsh llama `dsh-deepseek-v4-flash` a un modelo cuyo
+/// `route_model` es `deepseek-v4-flash`, y el registro de sesión anota el
+/// segundo. Comparar el registro contra el identificador de batuta habría dado
+/// `ProvenanceMismatch` en **todas** las corridas de dsh, para siempre: el
+/// canario nunca habría podido salir verde, y el motivo habría acusado al
+/// proveedor de correr un modelo distinto cuando corría el correcto.
+///
+/// El test viejo no lo veía porque ponía el mismo nombre en los dos sitios, que
+/// es justo el caso que no ocurre en ningún manifiesto real.
+#[test]
+fn el_registro_se_compara_con_el_nombre_que_el_proveedor_entiende() {
+    let hechos = hechos_buenos();
+    assert_ne!(
+        hechos.model_requested, hechos.route_model,
+        "el fixture tiene que usar los dos nombres, o no prueba nada"
+    );
+
+    let recibo = Receipt::seal(hechos);
+
+    assert!(recibo.verdict().is_green(), "{:?}", recibo.verdict());
+    assert!(recibo.model_confirmed());
+    // Y el recibo conserva el identificador de batuta, que es por el que se pidió.
+    assert_eq!(recibo.model_requested(), "dsh-deepseek-v4-flash");
+    assert_eq!(recibo.route_model(), "deepseek-v4-flash");
+}
+
+/// Y la discrepancia de verdad sigue siendo roja, nombrando los dos nombres del
+/// mismo espacio: el que se pidió al proveedor y el que el proveedor anotó.
+#[test]
+fn un_modelo_de_ruta_distinto_del_anotado_sigue_siendo_rojo() {
+    let mut hechos = hechos_buenos();
+    hechos.observed = Ok(ObservedProvenance::new(
+        "minimax".to_string(),
+        "minimax-m2".to_string(),
+        vec!["session-abc".to_string()],
+        vec![("bash".to_string(), 4)],
+        Some("workspace-write".to_string()),
+        Some("batuta-escritura".to_string()),
+    ));
+
+    let recibo = Receipt::seal(hechos);
+
+    assert_eq!(
+        *recibo.verdict(),
+        batuta_receipt::Verdict::Red(RedReason::ProvenanceMismatch {
+            requested: "deepseek-v4-flash".to_string(),
+            observed: "minimax-m2".to_string(),
+        }),
+        "el motivo compara los dos nombres del mismo espacio"
+    );
+    assert!(!recibo.model_confirmed());
 }

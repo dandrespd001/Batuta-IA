@@ -103,6 +103,9 @@ impl ObservedProvenance {
 pub struct Receipt {
     provider: String,
     model_requested: String,
+    /// El nombre con el que se le pidió al proveedor. Es el que el registro
+    /// anota, y por tanto el único con el que se puede contrastar.
+    route_model: String,
     manifest: PathBuf,
     manifest_sha256: String,
     argv: Vec<String>,
@@ -126,6 +129,20 @@ pub struct Receipt {
 }
 
 impl Receipt {
+    /// El modelo que se pidió, con el identificador de batuta.
+    pub fn model_requested(&self) -> &str {
+        &self.model_requested
+    }
+
+    /// El mismo modelo, con el nombre que el proveedor entiende.
+    ///
+    /// Es el que se contrasta con el registro. El recibo lleva los dos porque
+    /// quien lo lee necesita poder ir en las dos direcciones: del manifiesto al
+    /// registro, y del registro al manifiesto.
+    pub fn route_model(&self) -> &str {
+        &self.route_model
+    }
+
     /// El `argv` **real** con el que se lanzó el proceso, no el del manifiesto.
     ///
     /// Entre uno y otro hay sustituciones, y el que importa para reproducir es
@@ -203,8 +220,17 @@ impl Receipt {
 pub struct RunFacts {
     /// Proveedor del manifiesto.
     pub provider: String,
-    /// El modelo que batuta pidió.
+    /// El modelo que batuta pidió, con **su** identificador.
     pub model_requested: String,
+    /// El mismo modelo, con el nombre que **el proveedor** entiende.
+    ///
+    /// Son dos espacios de nombres distintos y el registro de sesión sólo conoce
+    /// el segundo: el manifiesto de dsh llama `dsh-deepseek-v4-flash` a un modelo
+    /// cuyo `route_model` es `deepseek-v4-flash`. Comparar el registro contra el
+    /// identificador de batuta daría `ProvenanceMismatch` en **todas** las
+    /// corridas, acusando al proveedor de correr otro modelo cuando corre el
+    /// correcto.
+    pub route_model: String,
     /// Si este proveedor deja registro legible, y por tanto si su procedencia se
     /// puede **comprobar** o sólo creer.
     ///
@@ -263,6 +289,7 @@ impl Receipt {
         let RunFacts {
             provider,
             model_requested,
+            route_model,
             provenance_source,
             manifest,
             manifest_sha256,
@@ -283,12 +310,18 @@ impl Receipt {
             scope_violations: _,
         } = facts;
 
-        // Confirmado sólo si había registro que leer **y** se leyó.
-        let model_confirmed = provenance_source == ProvenanceSource::SessionLog && observed.is_ok();
+        // Confirmado sólo si había registro que leer, se leyó, **y nombra el
+        // modelo que se pidió**. Un registro legible que nombra otro modelo no
+        // confirma nada: confirma lo contrario.
+        let model_confirmed = provenance_source == ProvenanceSource::SessionLog
+            && observed
+                .as_ref()
+                .is_ok_and(|observada| observada.model() == route_model);
 
         Self {
             provider,
             model_requested,
+            route_model,
             manifest,
             manifest_sha256,
             argv,
@@ -317,7 +350,7 @@ impl Receipt {
             stdout,
             expected_token,
             observed,
-            model_requested,
+            route_model,
             declared_tools,
             scope_violations,
             provenance_source,
@@ -365,9 +398,11 @@ impl Receipt {
             }
         };
 
-        if observed.model() != model_requested {
+        // Los dos nombres del **mismo** espacio: el que se le pidió al proveedor
+        // y el que el proveedor anotó. El identificador de batuta no entra aquí.
+        if observed.model() != route_model {
             return Verdict::Red(RedReason::ProvenanceMismatch {
-                requested: model_requested.to_owned(),
+                requested: route_model.to_owned(),
                 observed: observed.model().to_owned(),
             });
         }

@@ -183,6 +183,7 @@ pub fn run_canary(
     Ok(Receipt::seal(RunFacts {
         provider: manifest.id().as_str().to_string(),
         model_requested: model.id().as_str().to_string(),
+        route_model: model.route_model().as_str().to_string(),
         provenance_source: manifest.provenance(),
         manifest: manifest.origin().to_path_buf(),
         manifest_sha256: manifest.source_sha256().to_string(),
