@@ -134,12 +134,20 @@ Cada una de 20-30 minutos de cuerpo. El **contrato** —firmas y tests que falla
 delega; el **cuerpo**, sí, por el flujo ya probado: worktree desechable, encargo ultra-literal
 con criterio binario, y verificación de los comandos en esta máquina antes de integrar.
 
-### T1 · `{reasoning_effort}`, medido primero
-- [ ] **Medir** cómo toma dsh el esfuerzo, y si abacus lo toma de alguna forma *(medición, ~15 min)*
-- [ ] `{reasoning_effort}` como llave incorporada, con `[substitutions.reasoning_effort]` cubriendo el vocabulario entero
-- [ ] Test: un mapa incompleto **falla al cargar**
-- [ ] Test: un manifiesto sin el mapa carga, y pedir esfuerzo a ese proveedor es un error que lo dice
-- [ ] `dsh.toml` lo declara; `abacus.toml` sólo si la medición lo respalda
+### T1 · `{reasoning_effort}`, medido primero — **hecho** (`b3b541d`)
+- [x] **Medir** cómo toma dsh el esfuerzo, y si abacus lo toma de alguna forma *(medición, ~15 min)*.
+      dsh: el adaptador de DeepSeek acepta exactamente `off`/`low`/`high`/`max`, nada más.
+      abacus: `abacusai --help` (2.6.11) no ofrece ninguna bandera de esfuerzo.
+- [x] `{reasoning_effort}` como llave incorporada, con `[substitutions.reasoning_effort]` cubriendo el vocabulario entero.
+      Reservada: keyed por `ReasoningEffort`, no por `WriteMode` como el resto de sustituciones.
+- [x] Test: un mapa incompleto **falla al cargar**
+- [x] Test: un manifiesto sin el mapa carga, y pedir esfuerzo a ese proveedor es un error que lo dice
+      (a nivel de carga: `{reasoning_effort}` sin mapa no es una llave admitida, R1)
+- [x] `dsh.toml` lo declara (colapso hacia ABAJO: `medium`→`low`, `xhigh`→`high`, nunca hacia `max`);
+      `abacus.toml` se queda sin mapa, con la medición que lo respalda
+- [x] *(no estaba en la lista, lo pidió la revisión)* test que contrasta el mapa real de `dsh.toml` contra los
+      cuatro literales medidos — cierra el hueco de precondición inerte: nada usa `{reasoning_effort}`
+      todavía, así que la carga no comprueba los *valores* del mapa, sólo que esté completo
 
 ### T2 · `batuta-policy`: el fichero de elección
 - [ ] Crate nuevo. **No depende de `batuta-exec`** (R3), y hay un test que lee el `Cargo.toml`
