@@ -48,10 +48,11 @@ Qué se mide, todo sobre trabajo real y no sintético:
 algo justifica bajar a C. La hipótesis a refutar es que **nada lo justifica**: si el
 proveedor tarda 2,5 s y batuta tarda microsegundos, el ejercicio termina ahí y se dice.
 
-- [ ] Banco con `std::time::Instant`, sin dependencia nueva (no hace falta `criterion` para
+- [x] Banco con `std::time::Instant`, sin dependencia nueva (no hace falta `criterion` para
       distinguir microsegundos de segundos)
-- [ ] Cada tramo con su número y su tamaño de entrada
-- [ ] `docs/medidas/COSTE.md` con la conclusión escrita, sea la que sea
+- [x] Cada tramo con su número y su tamaño de entrada
+- [x] `docs/medidas/COSTE.md` con la conclusión escrita: nada justifica bajar a C
+      (`7f22ed2`)
 
 ---
 
@@ -79,11 +80,15 @@ exterior: la caché de `npx` se reescribe sola, una cuota se agota, un proveedor
 modelo. No hay `/proc` que consultar para eso. La edad es un sustituto pobre y es el único
 honesto, así que el TTL va **declarado y visible**, no escondido en una constante.
 
-- [ ] `ReceiptStore::{open, save, latest_green}` sobre el directorio de la Fase 3
-- [ ] Invalidación por `manifest_sha256`, con test: editar el manifiesto invalida el recibo
-- [ ] TTL declarado, no constante mágica; y el error de «caducado» dice **cuándo** caducó
-- [ ] R9: leer no toma ningún cerrojo. El aserto es de tiempo
-- [ ] Un recibo ilegible **no** es un recibo ausente: es un estado que hay que mirar
+- [x] `ReceiptStore::{open, latest_green}` sobre el directorio de la Fase 3. `save` no se
+      duplicó: los recibos sólo los escribe el camino que los sella en `batuta-cli`
+- [x] Invalidación por `manifest_sha256`, con test: editar el manifiesto invalida el recibo
+- [x] TTL declarado, no constante mágica; y el estado «caducado» dice **cuándo** caducó
+- [x] R9: leer no toma ningún cerrojo. El aserto es de tiempo
+- [x] Un recibo ilegible **no** es un recibo ausente: `Lookup::unreadable` lo conserva
+
+Implementado en `batuta-store` durante T3 de la Fase 5 (`dbf6ab3`), que adelantó esta
+pieza porque el panel también necesitaba consultar la evidencia.
 
 ---
 
@@ -122,6 +127,32 @@ la misma tarea por las dos superficies y exige el mismo resultado.
 *Recomendación:* la segunda, con el umbral **declarado en la política y no en el código**.
 Es la que conserva la información en vez de gastarla, y `Sensitivity` ya es un vocabulario
 cerrado con orden.
+
+### Bloqueo descubierto al reanudar después de la Fase 5
+
+La persistencia de la elección ya existe (`batuta-policy`, `2e4d60b`), pero el enrutador
+todavía no puede cumplir R2 sin inventar información:
+
+- `TaskSpec` exige un conjunto de `Capability` (`read`, `write`, `tools`, `web_research`);
+- `ModelEntry` sólo declara `roles` y `max_sensitivity`;
+- el recibo verde demuestra transporte, token, procedencia, herramientas **no declaradas**
+  y alcance, pero no conserva qué capacidades positivas ejercitó y demostró;
+- `ReceiptStore::latest_green` indexa por modelo/manifiesto, no por capacidad.
+
+Por tanto, un canario verde de eco no prueba `write`, y uno verde de dsh no prueba
+`web_research`. Tratarlo como si lo hiciera repetiría exactamente el fallo que paga R2.
+Antes de implementar `TaskSpec → Route` hay que cerrar este contrato con tareas acotadas:
+
+- [ ] **P4.1 (20–30 min):** añadir al recibo un conjunto explícito de capacidades
+      demostradas, vacío para el canario básico; ida y vuelta JSON y mensaje legible
+- [ ] **P4.2 (20–30 min):** definir canarios de capacidad que ejerciten una capacidad real;
+      ningún manifiesto puede declararla demostrada sin ese escenario
+- [ ] **P4.3 (20–30 min):** hacer que `ReceiptStore` consulte evidencia vigente por
+      `(modelo, capacidad)` sin tomar cerrojo
+- [ ] **P4.4 (20–30 min):** añadir a `Politica` el umbral explícito de sensibilidad para
+      `model_confirmed: false`, con migración de esquema decidida antes de escribir código
+- [ ] **P4.5 (20–30 min):** implementar el selector puro y sus razones de descarte; sólo
+      después conectarlo a CLI y MCP por la misma función (R12)
 
 - [ ] `TaskSpec` → `Route { provider, model, receipt }`, o error que enumera lo descartado
       **y por qué cada uno** (R8: un «no hay ruta» sin motivos obliga a adivinar)
