@@ -188,6 +188,26 @@ Hay tres clases de nombre en este manifiesto que **batuta no posee**:
 manifiesto debe decirlo para que nadie espere lo segundo. Un `route_model` que dsh no
 conoce no es un error de carga: es un canario que falla, y así es como tiene que fallar.
 
+### La bandera no es la autoridad — dos de dos
+
+Medido en los dos proveedores que existen, con mecanismos distintos y el mismo resultado:
+
+| proveedor | lo que parecía mandar | lo que mandaba de verdad |
+|---|---|---|
+| dsh | `--patch` sobre la composición | el documento de settings del usuario |
+| abacus | `--model` en la línea de órdenes | la selección **dentro del producto** |
+
+Dos de dos. No es una peculiaridad de dsh: es lo normal en un CLI de proveedor, donde la
+bandera es una preferencia y la autoridad vive en el estado de la cuenta o del despliegue.
+
+**Consecuencia, y es la que justifica `[provenance]`:** un manifiesto declara qué modelo
+*quiere*, nunca qué modelo *habrá*. Sólo el recibo puede decir cuál corrió, y sólo si lo
+leyó. Donde no se pueda leer —`source = "declared"`, que es el caso de abacus— el recibo
+**no debe afirmar un modelo**: debe decir que no pudo comprobarlo.
+
+Si el canario de abacus demuestra que su salida sí trae el modelo, esa ruta sube a
+`session_log` y el manifiesto lo refleja. Antes no: se mide y luego se declara.
+
 ### Dónde vive de verdad la contención
 
 Medido, porque es fácil equivocarse aquí y el error sería creer que hay una jaula donde no
