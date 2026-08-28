@@ -7,6 +7,7 @@
 use std::path::PathBuf;
 use std::time::Duration;
 
+use batuta_contract::ProvenanceSource;
 use batuta_receipt::{MaterializedFile, ObservedProvenance, Receipt, RedReason, RunFacts};
 
 /// Una corrida que salió bien y cuya procedencia coincide con lo pedido.
@@ -14,6 +15,7 @@ fn hechos_buenos() -> RunFacts {
     RunFacts {
         provider: "dsh".to_string(),
         model_requested: "deepseek-v4-flash".to_string(),
+        provenance_source: ProvenanceSource::SessionLog,
         manifest: PathBuf::from("providers/dsh.toml"),
         manifest_sha256: "a".repeat(64),
         argv: vec!["--profile".into(), "headless".into(), "PONG".into()],
@@ -219,4 +221,79 @@ fn tocar_fuera_de_la_allowlist_es_rojo_y_dice_que_rutas() {
         }
         otro => panic!("se esperaba ScopeViolation: {otro:?}"),
     }
+}
+
+/// **El tercer estado.**
+///
+/// Abacus no deja registro legible y su modelo lo elige el producto, no la
+/// bandera. Con dos estados sólo cabían dos salidas y las dos eran malas: o todo
+/// recibo suyo salía rojo, o se fabricaba una procedencia con el modelo pedido —y
+/// eso es exactamente la mentira que este crate existe para impedir—.
+///
+/// Un verde de un proveedor `declared` significa **«el transporte funciona»**, no
+/// «corrió el modelo que pedí». El recibo tiene que decirlo, no dejar que el
+/// lector suponga lo segundo.
+#[test]
+fn un_proveedor_sin_registro_sale_verde_pero_sin_confirmar_el_modelo() {
+    let mut hechos = hechos_buenos();
+    hechos.provenance_source = ProvenanceSource::Declared;
+    hechos.observed = Err("este proveedor no deja registro de sesión".to_string());
+
+    let recibo = Receipt::seal(hechos);
+
+    assert!(
+        recibo.verdict().is_green(),
+        "no poder comprobar el modelo no es un fallo de la corrida: {:?}",
+        recibo.verdict()
+    );
+    assert!(
+        !recibo.model_confirmed(),
+        "y sin embargo el modelo NO quedó confirmado"
+    );
+}
+
+/// La otra mitad, que es la que impide relajar la regla por comodidad: donde sí
+/// hay registro, no poder leerlo sigue siendo rojo.
+#[test]
+fn donde_hay_registro_no_poder_leerlo_sigue_siendo_rojo() {
+    let mut hechos = hechos_buenos();
+    hechos.provenance_source = ProvenanceSource::SessionLog;
+    hechos.observed = Err("marco tronchado".to_string());
+
+    let recibo = Receipt::seal(hechos);
+
+    assert!(
+        matches!(
+            recibo.verdict().reason(),
+            Some(RedReason::ProvenanceUnreadable { .. })
+        ),
+        "{:?}",
+        recibo.verdict()
+    );
+    assert!(!recibo.model_confirmed());
+}
+
+/// Una corrida con registro legible y modelo coincidente **sí** confirma.
+#[test]
+fn con_registro_legible_y_modelo_coincidente_el_modelo_queda_confirmado() {
+    let recibo = Receipt::seal(hechos_buenos());
+    assert!(recibo.verdict().is_green());
+    assert!(recibo.model_confirmed());
+}
+
+/// El recibo se lee y se comparte: la diferencia entre «comprobado» y «no
+/// comprobable» tiene que estar en el documento, no en la cabeza de quien lo
+/// escribió.
+#[test]
+fn el_json_del_recibo_dice_si_el_modelo_quedo_confirmado() {
+    let mut hechos = hechos_buenos();
+    hechos.provenance_source = ProvenanceSource::Declared;
+    hechos.observed = Err("sin registro".to_string());
+
+    let json = Receipt::seal(hechos).to_json().expect("serializa");
+    assert!(
+        json.contains("model_confirmed"),
+        "el recibo no dice si el modelo se pudo comprobar: {json}"
+    );
+    assert!(json.contains("false"), "{json}");
 }

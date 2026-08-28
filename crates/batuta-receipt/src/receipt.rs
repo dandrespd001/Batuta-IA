@@ -12,6 +12,8 @@ use std::time::Duration;
 
 use serde::Serialize;
 
+use batuta_contract::ProvenanceSource;
+
 use crate::verdict::{RedReason, Verdict};
 
 /// Un fichero que batuta materializó para la corrida, con su contenido.
@@ -114,6 +116,12 @@ pub struct Receipt {
     /// sin depender de cómo serialice cada plataforma `Duration`.
     duration_ms: u64,
     observed: Option<ObservedProvenance>,
+    /// ¿Se pudo **comprobar** qué modelo corrió?
+    ///
+    /// No es lo mismo que el veredicto. Un proveedor sin registro legible puede
+    /// dar verde —el transporte funciona— sin que nadie haya confirmado el
+    /// modelo. Quien lea el recibo tiene que poder distinguirlo sin deducirlo.
+    model_confirmed: bool,
     verdict: Verdict,
 }
 
@@ -158,6 +166,15 @@ impl Receipt {
         self.observed.as_ref()
     }
 
+    /// ¿Quedó **comprobado** qué modelo corrió?
+    ///
+    /// `false` no implica rojo: un proveedor sin registro legible da verde
+    /// cuando el transporte funciona. Lo que `false` dice es que ese verde
+    /// significa «funcionó», no «corrió el modelo que pedí».
+    pub fn model_confirmed(&self) -> bool {
+        self.model_confirmed
+    }
+
     /// El veredicto, con su motivo si es rojo.
     pub fn verdict(&self) -> &Verdict {
         &self.verdict
@@ -188,6 +205,13 @@ pub struct RunFacts {
     pub provider: String,
     /// El modelo que batuta pidió.
     pub model_requested: String,
+    /// Si este proveedor deja registro legible, y por tanto si su procedencia se
+    /// puede **comprobar** o sólo creer.
+    ///
+    /// Sin este dato el recibo no puede distinguir «no lo pude leer» de «este
+    /// proveedor no lo ofrece», y esas dos cosas piden veredictos opuestos: la
+    /// primera es rojo, la segunda es verde sin confirmación.
+    pub provenance_source: ProvenanceSource,
     /// Manifiesto que gobernó la corrida.
     pub manifest: PathBuf,
     /// Su `sha256`, para poder reproducirla.
@@ -234,9 +258,12 @@ impl Receipt {
     /// Sólo si la duración de la corrida no cabe en `u64` milisegundos —unos
     /// 584 millones de años—, que no es una corrida sino un artefacto.
     pub fn seal(facts: RunFacts) -> Self {
+        let verdict = Self::derive_verdict(&facts);
+
         let RunFacts {
             provider,
             model_requested,
+            provenance_source,
             manifest,
             manifest_sha256,
             argv,
@@ -248,20 +275,16 @@ impl Receipt {
             stderr,
             duration,
             observed,
-            expected_token,
-            declared_tools,
-            scope_violations,
+            // Los tres siguientes ya los consumió `derive_verdict`: viven en el
+            // veredicto, no en el recibo. Un recibo no repite la pregunta, lleva
+            // la respuesta.
+            expected_token: _,
+            declared_tools: _,
+            scope_violations: _,
         } = facts;
 
-        let verdict = Self::derive_verdict(
-            exit_code,
-            &stdout,
-            expected_token.as_deref(),
-            &observed,
-            &model_requested,
-            &declared_tools,
-            &scope_violations,
-        );
+        // Confirmado sólo si había registro que leer **y** se leyó.
+        let model_confirmed = provenance_source == ProvenanceSource::SessionLog && observed.is_ok();
 
         Self {
             provider,
@@ -278,20 +301,31 @@ impl Receipt {
             duration_ms: u64::try_from(duration.as_millis())
                 .expect("la duración de una corrida cabe en u64 milisegundos"),
             observed: observed.ok(),
+            model_confirmed,
             verdict,
         }
     }
 
     /// Deriva el veredicto de los hechos, en el orden de la corrida.
-    fn derive_verdict(
-        exit_code: Option<i32>,
-        stdout: &str,
-        expected_token: Option<&str>,
-        observed: &Result<ObservedProvenance, String>,
-        model_requested: &str,
-        declared_tools: &[String],
-        scope_violations: &[String],
-    ) -> Verdict {
+    ///
+    /// Recibe los hechos enteros y no sus piezas: desmontarlos obligaba a
+    /// mantener dos listas en paralelo, y cada campo nuevo del recibo era un
+    /// argumento más aquí. `RunFacts` ya **es** la agrupación correcta.
+    fn derive_verdict(facts: &RunFacts) -> Verdict {
+        let RunFacts {
+            exit_code,
+            stdout,
+            expected_token,
+            observed,
+            model_requested,
+            declared_tools,
+            scope_violations,
+            provenance_source,
+            ..
+        } = facts;
+        let exit_code = *exit_code;
+        let provenance_source = *provenance_source;
+        let expected_token = expected_token.as_deref();
         // Primero lo que salió mal al ejecutar: un proceso que ni terminó bien
         // no puede diagnosticarse con lo que se ve leyendo el registro.
         if exit_code != Some(0) {
@@ -309,6 +343,19 @@ impl Receipt {
         // Luego lo que se ve leyendo el registro, en el orden del recibo:
         // procedencia, herramientas, y al final el alcance, que sólo se puede
         // verificar sobre el resultado.
+        // Un proveedor sin registro no puede fallar por no tenerlo. Y tampoco se
+        // le puede comprobar el uso de herramientas: por eso `abacus` contiene
+        // por bandera (`--disallowed-tools "*"`) lo que dsh deja observar. Cada
+        // uno con lo que su transporte permite, y el recibo dice cuál es cuál.
+        if provenance_source == ProvenanceSource::Declared {
+            if !scope_violations.is_empty() {
+                return Verdict::Red(RedReason::ScopeViolation {
+                    paths: scope_violations.clone(),
+                });
+            }
+            return Verdict::Green;
+        }
+
         let observed = match observed {
             Ok(observed) => observed,
             Err(detail) => {
@@ -332,7 +379,7 @@ impl Receipt {
 
         if !scope_violations.is_empty() {
             return Verdict::Red(RedReason::ScopeViolation {
-                paths: scope_violations.to_vec(),
+                paths: scope_violations.clone(),
             });
         }
 
