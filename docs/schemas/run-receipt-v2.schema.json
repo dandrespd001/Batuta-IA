@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://batuta.local/schemas/run-receipt-v2.schema.json",
+  "title": "RunReceiptV2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "id",
+    "request",
+    "grant",
+    "grant_hash",
+    "candidates",
+    "discards",
+    "decisions",
+    "reservations",
+    "consumptions",
+    "transitions",
+    "results",
+    "checkpoints",
+    "final_phase",
+    "receipt_hash"
+  ],
+  "properties": {
+    "schema_version": { "const": 2 },
+    "id": { "type": "string" },
+    "request": { "type": "object" },
+    "grant": { "type": "object" },
+    "grant_hash": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+    "candidates": { "type": "array" },
+    "discards": { "type": "array" },
+    "decisions": { "type": "array" },
+    "reservations": { "type": "array" },
+    "consumptions": { "type": "array" },
+    "transitions": { "type": "array" },
+    "results": { "type": "array" },
+    "checkpoints": { "type": "array" },
+    "final_phase": { "type": "string" },
+    "receipt_hash": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" }
+  }
+}

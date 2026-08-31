@@ -5,7 +5,7 @@
 
 use std::path::{Path, PathBuf};
 
-use batuta_contract::ReasoningEffort;
+use batuta_contract::{Capability, ReasoningEffort};
 use batuta_manifest::{ManifestError, ProviderManifest};
 
 /// El directorio `providers/` del propio repositorio.
@@ -98,6 +98,30 @@ fn el_manifiesto_base_carga() {
     ProviderManifest::parse(&base(), Path::new("prueba.toml")).expect("el base es válido");
 }
 
+#[test]
+fn un_canario_de_capacidad_declara_un_escenario_real_y_unico() {
+    let source = base().replace(
+        "expect = \"token_echo\"",
+        "expect = \"token_echo\"\n\n[[canary.scenarios]]\ncapability = \"tools\"\nprompt = \"Usa una herramienta y responde: {token}\"\nexpect = \"token_echo\"\ntools = [\"bash\"]",
+    );
+    let manifest = ProviderManifest::parse(&source, Path::new("prueba.toml")).unwrap();
+    let scenario = manifest
+        .canary()
+        .scenario(Capability::Tools)
+        .expect("tools tiene escenario");
+
+    assert_eq!(scenario.capability(), Capability::Tools);
+    assert!(scenario.prompt().contains("{token}"));
+
+    let duplicate = source.replace(
+        "[[canary.scenarios]]",
+        "[[canary.scenarios]]\ncapability = \"tools\"\nprompt = \"Primero: {token}\"\nexpect = \"token_echo\"\ntools = [\"bash\"]\n\n[[canary.scenarios]]",
+    );
+    let error = error_de(&duplicate).to_string();
+    assert!(error.contains("tools"), "{error}");
+    assert!(error.contains("duplicate"), "{error}");
+}
+
 /// Criterio 1 — y la tesis entera del proyecto: dar de alta un proveedor es un
 /// fichero. Si estos dos cargan, Abacus funciona sin haber parcheado el núcleo.
 #[test]
@@ -110,6 +134,26 @@ fn los_dos_manifiestos_del_repositorio_cargan() {
         vec!["abacus".to_string(), "dsh".to_string()],
         "{ids:?}"
     );
+}
+
+#[test]
+fn dsh_declara_canarios_reales_para_cada_capacidad_operativa() {
+    let manifest = ProviderManifest::load(
+        &std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../providers/dsh.toml"),
+    )
+    .unwrap();
+
+    for capability in [
+        batuta_contract::Capability::Read,
+        batuta_contract::Capability::Write,
+        batuta_contract::Capability::Tools,
+        batuta_contract::Capability::WebResearch,
+    ] {
+        assert!(
+            manifest.canary().scenario(capability).is_some(),
+            "falta escenario para {capability}"
+        );
+    }
 }
 
 /// Y cargan con las diferencias que los hacen interesantes: dsh materializa dos

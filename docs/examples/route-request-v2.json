@@ -1,0 +1,16 @@
+{
+  "schema_version": 2,
+  "request": {
+    "schema_version": 2,
+    "action": "implementation",
+    "required_capabilities": ["write"],
+    "sensitivity": "internal",
+    "required_context": 32000,
+    "effort": "high",
+    "minimum_quality": 78.0,
+    "selection_margin": 4.0,
+    "predicted_tokens": 32000,
+    "allow_any_eligible": false,
+    "allow_unverified_quality": false
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "recorded_at": "2026-08-28T23:41:40Z",
+  "branch": "main",
+  "head": "174b1279c5f35a78d808a30565df69a73ac9d887",
+  "upstream_state": "ahead 22",
+  "preexisting_changed_status_entries": 40,
+  "rustc": "1.98.0 (88d9e12ae 2026-08-18)",
+  "cargo": "1.98.0 (797e8a9bc 2026-08-05)",
+  "workspace_tests": 295,
+  "gates": {
+    "cargo_fmt": 0,
+    "contract_no_std": 0,
+    "cargo_clippy": 0,
+    "cargo_test": 0,
+    "local_gates": 0
+  },
+  "preservation": "All pre-existing modified and untracked files were retained; no reset, checkout or clean was used."
+}

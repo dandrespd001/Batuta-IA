@@ -27,6 +27,38 @@ use crate::provenance::{read_after, read_stderr, sessions_dir, snapshot};
 use crate::run::{build_env, run};
 use crate::substitution::{RunContext, resolve, resolve_argv};
 
+/// Comprueba el hecho positivo que un canario de capacidad debe observar.
+///
+/// La mera presencia del escenario en el manifiesto no concede nada. Los
+/// nombres se comparan de forma conservadora contra el registro real del
+/// harness; un nombre desconocido sólo demuestra `tools`, no lectura,
+/// escritura o web por aproximación.
+pub fn capability_was_observed(
+    capability: batuta_contract::Capability,
+    observed: &batuta_receipt::ObservedProvenance,
+) -> bool {
+    let used = |predicate: fn(&str) -> bool| {
+        observed
+            .tool_calls()
+            .iter()
+            .any(|(name, count)| *count > 0 && predicate(&name.to_ascii_lowercase()))
+    };
+    match capability {
+        batuta_contract::Capability::Tools => {
+            observed.tool_calls().iter().any(|(_, count)| *count > 0)
+        }
+        batuta_contract::Capability::Read => {
+            used(|name| name.contains("read") || name.contains("view") || name.contains("cat"))
+        }
+        batuta_contract::Capability::Write => {
+            used(|name| name.contains("write") || name.contains("edit") || name.contains("patch"))
+        }
+        batuta_contract::Capability::WebResearch => {
+            used(|name| name.contains("web") || name.contains("browser") || name.contains("search"))
+        }
+    }
+}
+
 /// Lo que hace falta para lanzar un canario.
 #[derive(Debug, Clone)]
 pub struct CanaryRequest {
@@ -88,6 +120,61 @@ pub fn run_canary(
     model: &ModelEntry,
     request: &CanaryRequest,
 ) -> Result<Receipt, ExecError> {
+    run_canary_scenario(
+        manifest,
+        model,
+        request,
+        manifest.canary().prompt(),
+        manifest.canary().expect(),
+        &[],
+        None,
+    )
+}
+
+/// Ejecuta el escenario declarado que debe ejercer una capacidad real.
+///
+/// # Errors
+///
+/// Además de los fallos normales del canario, devuelve
+/// [`ExecError::CapabilityCanaryMissing`] si el manifiesto no declara el
+/// escenario. Declarar una capacidad en otro campo nunca basta.
+pub fn run_capability_canary(
+    manifest: &ProviderManifest,
+    model: &ModelEntry,
+    request: &CanaryRequest,
+    capability: batuta_contract::Capability,
+) -> Result<Receipt, ExecError> {
+    let scenario = manifest.canary().scenario(capability).ok_or_else(|| {
+        ExecError::CapabilityCanaryMissing {
+            capability,
+            available: manifest
+                .canary()
+                .scenarios()
+                .iter()
+                .map(batuta_manifest::CapabilityCanary::capability)
+                .collect(),
+        }
+    })?;
+    run_canary_scenario(
+        manifest,
+        model,
+        request,
+        scenario.prompt(),
+        scenario.expect(),
+        scenario.declared_tools(),
+        Some(capability),
+    )
+}
+
+fn run_canary_scenario(
+    manifest: &ProviderManifest,
+    model: &ModelEntry,
+    request: &CanaryRequest,
+    prompt_template: &str,
+    expectation: CanaryExpectation,
+    declared_tools: &[String],
+    capability: Option<batuta_contract::Capability>,
+) -> Result<Receipt, ExecError> {
     // Admisión: los dos leases, por modelo y por repositorio, antes de arrancar.
     // Se guardan en variables **nombradas** y vivas hasta el final de la función:
     // son RAII, y al soltarse borran su fichero. Un `let _ =` las soltaría nada
@@ -124,12 +211,7 @@ pub fn run_canary(
         // para esto), no un encargo real: T1 no le fija ningún nivel todavía.
         reasoning_effort: None,
     };
-    contexto.prompt = resolve(
-        manifest.canary().prompt(),
-        "canary.prompt",
-        manifest,
-        &contexto,
-    )?;
+    contexto.prompt = resolve(prompt_template, "canary.prompt", manifest, &contexto)?;
 
     // Los ficheros de corrida, fuera del worktree; `materialize` ya crea los
     // directorios que hagan falta.
@@ -180,11 +262,20 @@ pub fn run_canary(
         }
     };
 
-    let expected_token = if manifest.canary().expect() == CanaryExpectation::TokenEcho {
+    let expected_token = if expectation == CanaryExpectation::TokenEcho {
         Some(token)
     } else {
         None
     };
+
+    let mut demonstrated_capabilities = BTreeSet::new();
+    if let Some(capability) = capability
+        && observada
+            .as_ref()
+            .is_ok_and(|observed| capability_was_observed(capability, observed))
+    {
+        demonstrated_capabilities.insert(capability);
+    }
 
     Ok(Receipt::seal(RunFacts {
         provider: manifest.id().as_str().to_string(),
@@ -204,10 +295,8 @@ pub fn run_canary(
         duration: salida.duration,
         observed: observada,
         expected_token,
-        declared_tools: Vec::new(),
-        // El canario básico demuestra transporte y procedencia, no `read`,
-        // `write`, `tools` ni `web_research` (P4.1).
-        demonstrated_capabilities: BTreeSet::new(),
+        declared_tools: declared_tools.to_vec(),
+        demonstrated_capabilities,
         scope_violations: Vec::new(),
     }))
 }

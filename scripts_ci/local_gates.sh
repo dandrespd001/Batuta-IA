@@ -36,8 +36,10 @@ comprobar_no_std() {
 
 ejecutar "formato"            cargo fmt --all --check
 ejecutar "cero E/S (no_std)"  comprobar_no_std
-ejecutar "clippy"             "${NICE[@]}" cargo clippy --workspace --all-targets --jobs "$JOBS" -- -D warnings
-ejecutar "tests"              "${NICE[@]}" cargo test --workspace --jobs "$JOBS"
+ejecutar "evidencia TDD"       python3 scripts_ci/validate_tdd_evidence.py
+ejecutar "sidecar DSH offline" node sidecar/test_dsh_catalog.mjs
+ejecutar "clippy"             "${NICE[@]}" cargo clippy --workspace --all-targets --all-features --jobs "$JOBS" -- -D warnings
+ejecutar "tests"              "${NICE[@]}" cargo test --workspace --all-features --jobs "$JOBS"
 
 printf '\n== resumen ==\n'
 if [[ "$FALLOS" -eq 0 ]]; then

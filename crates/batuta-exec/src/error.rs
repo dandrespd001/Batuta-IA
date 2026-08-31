@@ -10,9 +10,18 @@
 use std::fmt;
 use std::path::PathBuf;
 
+use batuta_contract::Capability;
+
 /// La corrida no llegó a empezar.
 #[derive(Debug)]
 pub enum ExecError {
+    /// El proveedor no declara escenario para esa capacidad.
+    CapabilityCanaryMissing {
+        /// Capacidad pedida.
+        capability: Capability,
+        /// Escenarios que sí existen.
+        available: Vec<Capability>,
+    },
     /// Una llave `{...}` que no es incorporada ni declarada.
     UnknownPlaceholder {
         /// Dónde apareció: `invoke.argv` o la ruta del documento.
@@ -104,6 +113,13 @@ pub enum ExecError {
 impl fmt::Display for ExecError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::CapabilityCanaryMissing {
+                capability,
+                available,
+            } => write!(
+                f,
+                "no capability canary for `{capability}`; available: {available:?}"
+            ),
             Self::UnknownPlaceholder {
                 field,
                 placeholder,

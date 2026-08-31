@@ -1,0 +1,34 @@
+{
+  "schema_version": 2,
+  "id": "run-example-1",
+  "objective": "Implementar el cambio y ejecutar sus pruebas",
+  "task": {
+    "schema_version": 1,
+    "role": "implementation",
+    "sensitivity": "internal",
+    "output_contract": "unified_diff",
+    "write_mode": "validated_patch",
+    "allowed_write_paths": ["src"],
+    "required_capabilities": ["write"],
+    "gate_profile": "standard",
+    "timeout_seconds": 300,
+    "max_repairs": 0
+  },
+  "routing": {
+    "schema_version": 2,
+    "request": {
+      "schema_version": 2,
+      "action": "implementation",
+      "required_capabilities": ["write"],
+      "sensitivity": "internal",
+      "required_context": 1,
+      "effort": null,
+      "minimum_quality": null,
+      "selection_margin": null,
+      "predicted_tokens": 1000,
+      "allow_any_eligible": null,
+      "allow_unverified_quality": null
+    }
+  },
+  "grant_id": "grant-example-1"
+}

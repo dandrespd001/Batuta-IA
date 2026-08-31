@@ -12,7 +12,7 @@
 use std::fmt;
 use std::path::PathBuf;
 
-use batuta_contract::{IdentifierError, SchemaVersionError, VocabularyError};
+use batuta_contract::{Capability, IdentifierError, SchemaVersionError, VocabularyError};
 
 /// Dónde ocurrió: fichero y línea, para que el mensaje sea accionable.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -187,6 +187,13 @@ pub enum ManifestError {
         /// El identificador repetido.
         id: String,
     },
+    /// Dos escenarios intentan acreditar la misma capacidad.
+    DuplicateCanaryCapability {
+        /// Dónde está la repetición.
+        at: SourceLocation,
+        /// Capacidad repetida.
+        capability: Capability,
+    },
 }
 
 /// Una lista de valores separada por comas, para los mensajes que R8 exige.
@@ -351,6 +358,12 @@ impl fmt::Display for ManifestError {
                 at.file.display(),
                 at.line
             ),
+            Self::DuplicateCanaryCapability { at, capability } => write!(
+                f,
+                "{}:{}: duplicate canary scenario for capability `{capability}`",
+                at.file.display(),
+                at.line
+            ),
         }
     }
 }
@@ -378,7 +391,8 @@ impl ManifestError {
             | Self::PromptNeverDelivered { at, .. }
             | Self::NoModels { at, .. }
             | Self::ConflictingEnvVar { at, .. }
-            | Self::DuplicateModel { at, .. } => Some(at),
+            | Self::DuplicateModel { at, .. }
+            | Self::DuplicateCanaryCapability { at, .. } => Some(at),
         }
     }
 }

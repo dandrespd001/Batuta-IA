@@ -24,7 +24,12 @@ batuta-receipt = { path = "../batuta-receipt" }
 batuta-exec = { path = "../batuta-exec" }
 batuta-policy = { path = "../batuta-policy" }
 batuta-store = { path = "../batuta-store" }
+batuta-quality = { path = "../batuta-quality" }
+batuta-routing = { path = "../batuta-routing" }
 serde_json = { workspace = true }
+serde = { workspace = true, features = ["std"] }
+ratatui = { workspace = true }
+crossterm = { workspace = true }
 
 [lints]
 workspace = true

@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "id": "grant-example-1",
+  "issued_at": 1788134400,
+  "expires_at": 1788138000,
+  "manifest_hash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "routes": ["dsh/example/model-v1/revision-1"],
+  "actions": ["implementation"],
+  "operations": ["run"],
+  "limits": {
+    "requests": 2,
+    "input_tokens": 20000,
+    "output_tokens": 10000,
+    "wall_time_ms": 120000
+  }
+}

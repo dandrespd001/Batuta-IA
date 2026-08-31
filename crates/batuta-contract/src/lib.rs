@@ -28,6 +28,7 @@ extern crate alloc;
 
 pub mod error;
 pub mod ids;
+pub mod route;
 pub mod task;
 pub mod vocabularies;
 pub mod vocabulary;
@@ -37,6 +38,7 @@ pub use ids::{
     CredentialName, EnvVarName, GateProfileId, IdentifierError, IdentifierProblem, ModelId,
     ProviderId, RelativePath, RouteModel, SchemaVersion, SchemaVersionError,
 };
+pub use route::{RouteRef, RouteRefError};
 pub use task::{TaskSpec, TaskSpecDraft, TaskSpecError};
 pub use vocabularies::{
     AuthMethod, CanaryExpectation, Capability, DocumentFormat, ExecutionProfile, OutputContract,

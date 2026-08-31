@@ -3,6 +3,7 @@
 
 use std::path::{Path, PathBuf};
 
+use batuta_contract::Capability;
 use batuta_manifest::{ModelEntry, ProviderManifest};
 use batuta_receipt::Receipt;
 
@@ -48,7 +49,66 @@ pub fn canary(
     let manifiesto = hallar(&manifiestos, provider)?;
     let modelo = elegir_modelo(manifiesto, provider, model)?;
 
-    ejecutar(manifiesto, modelo, provider, layout, dsh_home)
+    ejecutar(manifiesto, modelo, provider, layout, dsh_home, None)
+}
+
+/// Lanza el escenario que demuestra una capacidad concreta de la ruta exacta.
+///
+/// # Errors
+///
+/// Devuelve [`CliError`] si falta el escenario, la ruta no existe o la corrida
+/// no puede producir un recibo. Un recibo rojo sigue siendo un resultado.
+pub fn canary_capability(
+    provider: &str,
+    model: Option<&str>,
+    capability: Capability,
+    providers_dir: &Path,
+    layout: &Layout,
+    dsh_home: &Path,
+) -> Result<CanaryOutcome, CliError> {
+    let manifiestos = cargar(providers_dir)?;
+    let manifiesto = hallar(&manifiestos, provider)?;
+    let modelo = elegir_modelo(manifiesto, provider, model)?;
+
+    ejecutar(
+        manifiesto,
+        modelo,
+        provider,
+        layout,
+        dsh_home,
+        Some(capability),
+    )
+}
+
+/// Ejecuta un escenario de capacidad, secuencialmente, para todos los modelos.
+///
+/// # Errors
+///
+/// Devuelve [`CliError`] si el proveedor o el escenario no existen o una
+/// corrida no puede producir un recibo.
+pub fn canary_capability_all(
+    provider: &str,
+    capability: Capability,
+    providers_dir: &Path,
+    layout: &Layout,
+    dsh_home: &Path,
+) -> Result<Vec<CanaryOutcome>, CliError> {
+    let manifiestos = cargar(providers_dir)?;
+    let manifiesto = hallar(&manifiestos, provider)?;
+    manifiesto
+        .models()
+        .iter()
+        .map(|modelo| {
+            ejecutar(
+                manifiesto,
+                modelo,
+                provider,
+                layout,
+                dsh_home,
+                Some(capability),
+            )
+        })
+        .collect()
 }
 
 /// Lanza el canario de **todos** los modelos de un proveedor, uno tras otro.
@@ -79,7 +139,7 @@ pub fn canary_all(
     manifiesto
         .models()
         .iter()
-        .map(|modelo| ejecutar(manifiesto, modelo, provider, layout, dsh_home))
+        .map(|modelo| ejecutar(manifiesto, modelo, provider, layout, dsh_home, None))
         .collect()
 }
 
@@ -121,6 +181,7 @@ fn ejecutar(
     provider: &str,
     layout: &Layout,
     dsh_home: &Path,
+    capability: Option<Capability>,
 ) -> Result<CanaryOutcome, CliError> {
     let nombre = nombre_corrida(provider, modelo.id().as_str());
     let corrida = layout.runs().join(&nombre);
@@ -152,10 +213,15 @@ fn ejecutar(
         timeout: TIMEOUT_CANARIO,
         task_id: nombre.clone(),
     };
-    let recibo =
-        batuta_exec::run_canary(manifiesto, modelo, &peticion).map_err(|e| CliError::Exec {
-            source: Box::new(e),
-        })?;
+    let recibo = match capability {
+        Some(capability) => {
+            batuta_exec::run_capability_canary(manifiesto, modelo, &peticion, capability)
+        }
+        None => batuta_exec::run_canary(manifiesto, modelo, &peticion),
+    }
+    .map_err(|e| CliError::Exec {
+        source: Box::new(e),
+    })?;
 
     let receipt_path = layout.receipts().join(format!("{nombre}.json"));
     let json = recibo.to_json().map_err(|source| CliError::Io {

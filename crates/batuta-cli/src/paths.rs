@@ -73,4 +73,48 @@ impl Layout {
     pub fn politica(&self) -> PathBuf {
         self.root.join("politica.toml")
     }
+
+    /// Evidencia investigada activa, staging y solicitudes bajo demanda.
+    pub fn research(&self) -> PathBuf {
+        self.root.join("research")
+    }
+
+    /// Foto v2 confiable que comparten CLI, MCP, tabla, HTML y TUI.
+    pub fn routing_snapshot(&self) -> PathBuf {
+        self.root.join("routing-snapshot-v2.json")
+    }
+
+    /// Estado v2 por manifest y objetos inmutables.
+    pub fn state(&self) -> PathBuf {
+        self.root.join("state-v2")
+    }
+
+    /// Catálogo activo y propuestas importadas desde DSH.
+    pub fn catalog(&self) -> PathBuf {
+        self.root.join("catalog")
+    }
+
+    /// Grants inmutables y revocaciones append-only.
+    pub fn grants(&self) -> PathBuf {
+        self.root.join("grants")
+    }
+
+    /// Perfil operativo activo y sus propuestas.
+    pub fn execution_profile(&self) -> PathBuf {
+        self.root.join("execution-profile")
+    }
+
+    /// Materialización privada de invocaciones K4.
+    pub fn invocations(&self) -> PathBuf {
+        self.root.join("invocations")
+    }
+
+    /// Directorio confiable de manifests; ninguna superficie permite sustituirlo.
+    ///
+    /// # Errors
+    ///
+    /// Si el proceso no tiene un directorio actual resoluble.
+    pub fn trusted_manifests(&self) -> std::io::Result<PathBuf> {
+        std::env::current_dir().map(|directory| directory.join("providers"))
+    }
 }

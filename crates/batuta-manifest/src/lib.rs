@@ -22,6 +22,8 @@ pub mod runtime_file;
 pub mod substitution;
 
 pub use error::{ManifestError, SourceLocation};
-pub use manifest::{Auth, Canary, EnvPolicy, Executable, Invoke, ModelEntry, ProviderManifest};
+pub use manifest::{
+    Auth, Canary, CapabilityCanary, EnvPolicy, Executable, Invoke, ModelEntry, ProviderManifest,
+};
 pub use runtime_file::{RuntimeDocument, RuntimeFile};
 pub use substitution::{BUILTIN_PLACEHOLDERS, Substitutions};

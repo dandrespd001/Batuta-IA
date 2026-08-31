@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://batuta.local/schemas/run-request-v2.schema.json",
+  "title": "RunRequestV2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "id", "objective", "task", "routing", "grant_id"],
+  "properties": {
+    "schema_version": { "const": 2 },
+    "id": { "type": "string", "pattern": "^[A-Za-z0-9._-]{1,128}$" },
+    "objective": { "type": "string", "minLength": 1 },
+    "task": { "type": "object" },
+    "routing": { "type": "object" },
+    "grant_id": { "type": "string", "pattern": "^[A-Za-z0-9._-]{1,128}$" }
+  }
+}

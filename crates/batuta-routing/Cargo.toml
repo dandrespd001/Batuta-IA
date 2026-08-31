@@ -1,0 +1,21 @@
+[package]
+name = "batuta-routing"
+description = "Selector puro, política v2, salud durable y checkpoints de relevo."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+batuta-contract = { path = "../batuta-contract" }
+batuta-exec = { path = "../batuta-exec" }
+batuta-lease = { path = "../batuta-lease" }
+batuta-quality = { path = "../batuta-quality" }
+nix = { workspace = true }
+serde = { workspace = true, features = ["std"] }
+serde_json = { workspace = true }
+sha2 = { workspace = true }
+toml = { workspace = true }
+
+[lints]
+workspace = true

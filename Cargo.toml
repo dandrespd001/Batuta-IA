@@ -8,6 +8,8 @@ members = [
     "crates/batuta-exec",
     "crates/batuta-policy",
     "crates/batuta-store",
+    "crates/batuta-quality",
+    "crates/batuta-routing",
     "crates/batuta-cli",
 ]
 
@@ -24,6 +26,8 @@ toml = "0.9"
 sha2 = "0.10"
 nix = { version = "0.29", features = ["signal", "process"] }
 zstd = "0.13"
+ratatui = "0.29"
+crossterm = "0.28"
 
 # `cargo clippy --workspace -- -D warnings` es gate permanente (§7 del brief),
 # asi que todo lo que aparezca aqui es, en la practica, error de compilacion.

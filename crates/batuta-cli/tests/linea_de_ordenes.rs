@@ -29,6 +29,31 @@ fn canary_con_proveedor_y_modelo_se_entiende() {
             provider: "dsh".to_string(),
             model: Some("dsh-deepseek-v4-flash".to_string()),
             all: false,
+            capability: None,
+        }
+    );
+}
+
+#[test]
+fn canary_de_capacidad_selecciona_un_escenario_del_manifiesto() {
+    let orden = parse(&argumentos(&[
+        "canary",
+        "--provider",
+        "dsh",
+        "--model",
+        "dsh-deepseek-v4-flash",
+        "--capability",
+        "tools",
+    ]))
+    .expect("la orden es correcta");
+
+    assert_eq!(
+        orden,
+        Command::Canary {
+            provider: "dsh".to_string(),
+            model: Some("dsh-deepseek-v4-flash".to_string()),
+            all: false,
+            capability: Some("tools".to_string()),
         }
     );
 }
@@ -43,6 +68,7 @@ fn el_modelo_es_opcional() {
             provider: "abacus".to_string(),
             model: None,
             all: false,
+            capability: None,
         }
     );
 }
@@ -114,10 +140,38 @@ fn la_ayuda_no_promete_ninguna_bandera_que_el_parseo_no_admita() {
             parse(&argumentos(&["canary", "--provider", "eco", bandera])),
             parse(&argumentos(&["panel", bandera, "x"])),
             parse(&argumentos(&["panel", bandera])),
+            parse(&argumentos(&["route", bandera, "x"])),
+            parse(&argumentos(&["route", bandera])),
+            parse(&argumentos(&["research", "update", bandera, "x"])),
+            parse(&argumentos(&["research", "update", bandera])),
+            parse(&argumentos(&["research", "apply", "proposal-1", bandera])),
+            parse(&argumentos(&["grant", "create", "--file", "x", bandera])),
+            parse(&argumentos(&["grant", "create", bandera, "x"])),
+            parse(&argumentos(&["run", bandera, "x"])),
+            parse(&argumentos(&[
+                "executor", "profile", "import", bandera, "x",
+            ])),
+            parse(&argumentos(&[
+                "executor",
+                "profile",
+                "apply",
+                "proposal-1",
+                "--expected-hash",
+                "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                bandera,
+            ])),
+            parse(&argumentos(&[
+                "executor",
+                "profile",
+                "apply",
+                "proposal-1",
+                bandera,
+                "x",
+            ])),
         ];
         assert!(
             intentos.into_iter().any(|intento| intento.is_ok()),
-            "la ayuda nombra {bandera} y el parseo la rechaza en las cuatro formas probadas"
+            "la ayuda nombra {bandera} y el parseo la rechaza en todas las superficies probadas"
         );
     }
 }
@@ -138,6 +192,7 @@ fn all_pide_el_canario_de_todos_los_modelos() {
             provider: "abacus".to_string(),
             model: None,
             all: true,
+            capability: None,
         }
     );
 }
@@ -427,4 +482,41 @@ fn quitar_modelo_con_un_argumento_de_mas_lo_rechaza() {
     let error = parse(&argumentos(&["quitar-modelo", "dsh/modelo", "sobra"]))
         .expect_err("un argumento de más");
     assert!(error.to_string().contains("sobra"), "{error}");
+}
+
+#[test]
+fn catalog_import_status_y_apply_exigen_sus_argumentos() {
+    assert_eq!(
+        parse(&argumentos(&["catalog", "import"])).unwrap(),
+        Command::Catalog {
+            command: batuta_cli::CatalogCommand::Import { file: None }
+        }
+    );
+    assert!(matches!(
+        parse(&argumentos(&["catalog", "import", "--file", "dsh.json"])).unwrap(),
+        Command::Catalog {
+            command: batuta_cli::CatalogCommand::Import { file: Some(_) }
+        }
+    ));
+    assert_eq!(
+        parse(&argumentos(&["catalog", "status"])).unwrap(),
+        Command::Catalog {
+            command: batuta_cli::CatalogCommand::Status
+        }
+    );
+    assert_eq!(
+        parse(&argumentos(&[
+            "catalog",
+            "apply",
+            "proposal-1",
+            "--confirm"
+        ]))
+        .unwrap(),
+        Command::Catalog {
+            command: batuta_cli::CatalogCommand::Apply {
+                proposal: "proposal-1".to_string(),
+                confirm: true
+            }
+        }
+    );
 }

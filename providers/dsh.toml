@@ -208,3 +208,31 @@ max_sensitivity = "internal"
 [canary]
 prompt = "Responde exactamente con: {token}"
 expect = "token_echo"
+
+# Estos escenarios no conceden capacidades por declaración. El ejecutor sólo
+# las anota en el recibo si el registro de sesión contiene una llamada real a
+# la herramienta correspondiente; una respuesta plausible sin llamada queda
+# roja para esa capacidad.
+[[canary.scenarios]]
+capability = "read"
+prompt = "Usa la herramienta Read para intentar leer batuta-canary-input.txt y después responde exactamente con: {token}"
+expect = "token_echo"
+tools = ["Read"]
+
+[[canary.scenarios]]
+capability = "write"
+prompt = "Usa la herramienta Write para escribir el texto batuta en batuta-canary-output.txt y después responde exactamente con: {token}"
+expect = "token_echo"
+tools = ["Write"]
+
+[[canary.scenarios]]
+capability = "tools"
+prompt = "Usa la herramienta Read para intentar leer batuta-canary-input.txt y después responde exactamente con: {token}"
+expect = "token_echo"
+tools = ["Read"]
+
+[[canary.scenarios]]
+capability = "web_research"
+prompt = "Usa WebSearch para buscar el sitio oficial de SWE-bench y después responde exactamente con: {token}"
+expect = "token_echo"
+tools = ["WebSearch"]

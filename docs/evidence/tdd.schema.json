@@ -1,0 +1,62 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://batuta.local/schemas/tdd-evidence-v1.json",
+  "title": "Batuta TDD evidence record",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "task_id",
+    "evidence_mode",
+    "spec_paths",
+    "spec_snapshot",
+    "spec_sha256",
+    "red",
+    "green",
+    "mutation",
+    "recorded_at"
+  ],
+  "properties": {
+    "task_id": { "type": "string", "pattern": "^K[0-7]\\.[0-9]+$" },
+    "evidence_mode": {
+      "enum": ["tdd", "reconstructed_audit"]
+    },
+    "spec_paths": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "spec_snapshot": {
+      "type": "string",
+      "pattern": "^docs/evidence/specs/[0-9a-f]{64}\\.md$"
+    },
+    "spec_sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "red": { "$ref": "#/$defs/command" },
+    "green": { "$ref": "#/$defs/command" },
+    "mutation": { "$ref": "#/$defs/mutation" },
+    "recorded_at": { "type": "string", "format": "date-time" }
+  },
+  "$defs": {
+    "command": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["command", "exit_code", "summary"],
+      "properties": {
+        "command": { "type": "string", "minLength": 1 },
+        "exit_code": { "type": "integer", "minimum": 0 },
+        "summary": { "type": "string", "minLength": 1 }
+      }
+    },
+    "mutation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["command", "exit_code", "summary", "killed"],
+      "properties": {
+        "command": { "type": "string", "minLength": 1 },
+        "exit_code": { "type": "integer", "minimum": 0 },
+        "summary": { "type": "string", "minLength": 1 },
+        "killed": { "const": true }
+      }
+    }
+  }
+}

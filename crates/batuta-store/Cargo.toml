@@ -10,13 +10,11 @@ license.workspace = true
 # nada, así que no depende de batuta-exec; no decide qué usar, así que no
 # depende de batuta-policy.
 [dependencies]
+batuta-contract = { path = "../batuta-contract" }
 batuta-receipt = { path = "../batuta-receipt" }
 serde_json = { workspace = true }
 
 # Sólo para construir recibos de prueba (`RunFacts` pide `ProvenanceSource`).
 # El crate en sí no la usa.
-[dev-dependencies]
-batuta-contract = { path = "../batuta-contract" }
-
 [lints]
 workspace = true

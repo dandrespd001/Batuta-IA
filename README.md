@@ -11,6 +11,8 @@ enrutada allí moría *después* de pagar la corrida. De ahí sale la regla que 
 demás: **nada se declara, se demuestra.**
 
 - `docs/ESQUEMA_MANIFIESTO.md` — el esquema de manifiestos y por qué cada campo existe.
+- `docs/REGLAS_INGENIERIA_RUST.md` — reglas generales de modularidad y mantenibilidad.
+- `docs/DEUDA_MODULAR_RUST.md` — inventario gradual de módulos que requieren una división segura.
 - `docs/medidas/DSH_HEADLESS.md` — las mediciones sobre las que se apoya el diseño.
 - `docs/medidas/DELEGACION_MANIFEST.md` — la primera delegación real, medida y verificada.
 
@@ -22,8 +24,8 @@ demás: **nada se declara, se demuestra.**
 | **1** | **Workspace, `batuta-contract`, gates** | **hecho** |
 | **2** | **Manifiestos** | **hecho** |
 | **3** | **Ejecución, recibos, leases y el CLI** | **hecho** (`docs/medidas/CANARIOS.md`) |
-| 4 | Política y benchmark | pendiente |
-| 5 | Superficies MCP y CLI | pendiente |
+| **4** | **Núcleo de política, calidad y routing** | **núcleo y cierre operativo K4 hechos; CLI general de política diferida** |
+| **5** | **CLI JSON, MCP stdio y TUI local** | **superficies K4 hechas; CRUD TUI ajeno al perfil diferido** |
 | 6 | Convivencia y corte | pendiente |
 
 El primer beneficio real llega en la Fase 3, no al final. Y llegó: `batuta canary` corre
@@ -34,6 +36,7 @@ contra dos proveedores reales y deja recibo. Los plugins de la Fase 3 original s
 
 ```sh
 batuta canary --provider dsh --model dsh-deepseek-v4-flash
+batuta canary --provider dsh --model dsh-deepseek-v4-flash --capability tools
 batuta canary --provider abacus
 ```
 
@@ -68,13 +71,19 @@ crates/batuta-manifest/          carga y validación de manifiestos
 crates/batuta-receipt/           el recibo, que DERIVA su veredicto de los hechos
 crates/batuta-lease/             admisión por leases, con caducidad por evidencia
 crates/batuta-exec/              sustitución, materialización, árbol de procesos, canario
+crates/batuta-quality/           observaciones, cestas, proyección y staging de investigación
+crates/batuta-routing/           selector puro, salud, relevo y migración de política
 crates/batuta-cli/               el binario `batuta`
 providers/dsh.toml               DeepSeek Harness
 providers/abacus.toml            Abacus.AI — el proveedor que originó el proyecto
 pruebas/discrepante/dsh.toml     manifiesto deliberadamente equivocado: la prueba de
                                  que el recibo no miente
 docs/ESQUEMA_MANIFIESTO.md       el esquema y su justificación
+docs/REGLAS_INGENIERIA_RUST.md  reglas generales de modularidad y mantenibilidad
+docs/DEUDA_MODULAR_RUST.md       registro de extracciones modulares pendientes y cerradas
 docs/FASE3_EJECUCION.md          los siete criterios de la Fase 3, cerrados
+docs/ESQUEMA_CALIDAD_ROUTING.md  contrato de evidencia y selección
+docs/IMPLEMENTACION_ROUTING_V2.md estado verificable y límites operativos
 docs/medidas/DSH_HEADLESS.md     lo que se midió del transporte, con las corridas
 docs/medidas/DELEGACION_MANIFEST.md  la primera delegación real, verificada
 docs/medidas/CANARIOS.md         los canarios reales, con sus recibos sin editar
@@ -113,8 +122,9 @@ Cuatro, y ninguno es opcional:
 
 1. `cargo fmt --all --check`
 2. `batuta-contract` sigue siendo `no_std`
-3. `cargo clippy --workspace --all-targets -- -D warnings`
-4. `cargo test --workspace`
+3. evidencia TDD JSONL validada
+4. `cargo clippy --workspace --all-targets --all-features -- -D warnings`
+5. `cargo test --workspace --all-features`
 
 Prioridad baja y dos jobs por defecto, como manda `AGENTS.md` de CHUNSA001.
 `BATUTA_BUILD_JOBS` es un override consciente.

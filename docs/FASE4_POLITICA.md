@@ -1,254 +1,140 @@
-# Fase 4 — Política, benchmark y retirada
+# SPEC v2 — Política, evidencia investigada y routing
 
-**Estado: propuesta. No se construye nada de aquí sin aprobación del Arquitecto**, salvo
-lo marcado como *medición*, que no decide nada y sirve para decidir.
+**Estado: aprobado para implementación.** Este documento reemplaza la propuesta de Fase 4.
 
-La Fase 3 dejó recibos de verdad. Eso cambia lo que esta fase puede hacer: `batuta-policy`
-decide sobre hechos, y hasta ahora no había ninguno.
+## 1. Vocabulario y límites
 
----
+- Un **harness** es el ejecutor: DSH, Abacus, Codex, Claude, Qwen Code, Kimi Code u
+  OpenCode.
+- Una **ruta** identifica `harness + provider + model`. MiniMax y DeepSeek dentro de DSH
+  son rutas de DSH, no harnesses.
+- Un **alias** es un nombre humano que resuelve a una sola ruta. Dos rutas no pueden
+  compartir el mismo alias.
+- La **acción** describe el trabajo para el que se estima calidad. La calidad pertenece a
+  `ruta + acción`; nunca al nombre del modelo aislado.
+- Batuta no lee ni modifica credenciales, suscripciones o saldos. Autenticación y cuota se
+  infieren exclusivamente del resultado que devuelve el harness.
 
-## §1 Lo que la Fase 3 midió y esta fase hereda
+## 2. Esquema de evidencia
 
-Cuatro cosas medidas que aquí dejan de ser suposiciones:
+`BenchmarkObservation` conserva el dato bruto: identificador, benchmark, versión,
+escenario, configuración, ruta exacta si se conoce, revisión del modelo, métrica,
+normalización `0..100`, URL, fecha, tipo de fuente y grupo de compatibilidad. Observaciones
+de grupos, versiones o configuraciones incompatibles no se promedian.
 
-1. **El tiempo está en el proveedor, no en batuta.** dsh tardó 2581 ms y abacus 16 405 ms
-   en devolver una sola línea. Todo lo que batuta hace alrededor —cargar manifiestos,
-   sustituir, materializar, lanzar, leer el registro— vive dentro de esos números.
-2. **Un recibo caduca cuando cambia el manifiesto que lo produjo.** Por eso el recibo lleva
-   `manifest_sha256` desde la Fase 3. No hizo falta inventarlo aquí.
-3. **Hay proveedores cuyo modelo no es comprobable**, y el recibo lo dice
-   (`model_confirmed`). La política tiene que poder enrutar a uno de ésos **sin fingir** que
-   está confirmado.
-4. **El stderr de abacus lleva `model: ZAI_GLM_5_3_FLASH`.** Su procedencia sí es legible,
-   en otro sitio y otro formato. Es la primera prueba de que `provenance.source` quiere un
-   tercer valor.
+`ActionProfile` contiene una cesta de componentes `{benchmark, scenario, weight}`. Los
+pesos son enteros y suman exactamente 100.
 
----
+`QualityProjection` es un resultado derivado e inmutable con:
 
-## §2 El benchmark va primero, y es medición
+- `researched_score`: media ponderada sólo sobre la cobertura utilizable;
+- `effective_score`: override vigente o, si no existe, el investigado;
+- `coverage`: suma de pesos cubiertos;
+- `contributing_range`: mínimo y máximo de los resultados contribuyentes;
+- procedencia, antigüedad, advertencias e identificador/hash de evidencia.
 
-> «Nada baja a C "por eficiencia" sin un benchmark previo que enseñe el coste en el perfil»
-> — regla del brief de arranque.
+`ManualOverride` conserva puntaje manual, motivo no vacío, fecha, autor y el valor
+investigado al que sustituyó. No edita ni elimina observaciones. Un override no convierte
+evidencia ausente en verificada.
 
-El benchmark **no decide**: mide, y luego se decide. Va primero porque su resultado cambia
-lo que tiene sentido construir después.
+`SelectionMargin` es una tolerancia de elección `0..100`; no es incertidumbre estadística.
 
-Qué se mide, todo sobre trabajo real y no sintético:
+## 3. Proyección y confianza
 
-| Tramo | Por qué importa |
+1. Toda métrica se normaliza explícitamente a `0..100`.
+2. La cobertura es la suma de pesos para los que hay evidencia compatible, vigente y
+   aplicable a la ruta exacta.
+3. Si varias observaciones compatibles cubren un componente, se usa la media de sus
+   valores normalizados. No se mezclan grupos incompatibles.
+4. `researched_score` se renormaliza sobre la cobertura disponible; cobertura cero no
+   produce ningún puntaje.
+5. La incertidumbre visible es rango, cobertura, edad y tipo de fuente. No se fabrica un
+   intervalo estadístico.
+6. Producción exige cobertura mínima, evidencia independiente reproducible o evaluación
+   local de la ruta exacta, y antigüedad menor o igual al máximo del perfil.
+7. Una fuente del fabricante puede contribuir, pero no verifica por sí sola una ruta.
+8. `allow_unverified_quality` es una autorización separada, explícita y registrada.
+
+El puente de descubrimiento DSH normaliza exclusivamente identidad, revisión,
+capacidades, contexto y costes. Nunca conserva credenciales, saldo o suscripción.
+Las rutas OpenCode se importan sólo si todos los componentes de coste existen,
+son finitos y valen cero; el nombre `free` no constituye evidencia de coste.
+`catalog import` sólo crea una propuesta sellada contra el hash activo;
+`catalog apply` exige confirmación y vuelve a comprobar propuesta y base antes del
+rename atómico.
+
+Cestas iniciales editables:
+
+| Acción | Componentes iniciales |
 |---|---|
-| `ProviderManifest::load_dir` de `providers/` | R7 lo repite en **cada** invocación. Si costara, R7 sería caro |
-| `resolve_argv` + `materialize` de dsh | dos documentos JSON por corrida |
-| `parse_log` sobre un registro real | el de la delegación de la Fase 3 pesa **3,7 MB comprimidos, 4526 líneas**. Es el único tramo con orden de magnitud sospechoso |
-| `LeaseStore::list` con N leases | R9 es una promesa de **latencia** |
-| El total, contra los 2581 ms del canario de dsh | la fracción que batuta controla |
+| `implementation`, `repair` | SWE-bench Verified + evaluación local exacta |
+| `code_generation`, `code_execution` | escenarios LiveCodeBench |
+| `tools` | BFCL |
+| `web_research` | GAIA + BFCL Agentic |
+| `review`, `documentation` | suite local específica |
 
-**Criterio de aceptación:** `docs/medidas/COSTE.md` con los números y una frase que diga si
-algo justifica bajar a C. La hipótesis a refutar es que **nada lo justifica**: si el
-proveedor tarda 2,5 s y batuta tarda microsegundos, el ejercicio termina ahí y se dice.
+## 4. Política y selección
 
-- [x] Banco con `std::time::Instant`, sin dependencia nueva (no hace falta `criterion` para
-      distinguir microsegundos de segundos)
-- [x] Cada tramo con su número y su tamaño de entrada
-- [x] `docs/medidas/COSTE.md` con la conclusión escrita: nada justifica bajar a C
-      (`7f22ed2`)
+`RouteRequestV2` no contiene candidatos, puntajes, proyecciones ni hashes. Esos
+datos se ensamblan exclusivamente desde un `RoutingSnapshot` local validado. El
+cliente tampoco puede suministrar el perfil de acción: Batuta resuelve los campos
+omitidos contra el perfil persistido en la misma foto.
 
----
+La política persistida usa `schema_version = 2`. La migración desde v1 es explícita: cada
+modelo conserva `habilitado` y `esfuerzo`; los campos nuevos se reciben desde un documento
+de migración o desde los valores declarados por el llamador, nunca mediante defaults
+ocultos.
 
-## §3 `batuta-store` — los recibos, consultables
+Para cada petición:
 
-Hoy los recibos se escriben y nadie los lee. La política los necesita para R2.
+1. Resolver acción, calidad mínima y margen desde la petición o su perfil.
+2. Descartar por capacidad, sensibilidad, evidencia, contexto, esfuerzo, cooldown y
+   autorización, conservando todas las razones.
+3. Exigir `effective_score >= minimum_quality`.
+4. Calcular `Qmax` y conservar `score >= max(minimum_quality, Qmax - selection_margin)`.
+5. Minimizar coste esperado: `predicted_tokens * relative_cost + handoff_penalty`, ajustado
+   por la tasa reciente de éxito.
+6. Desempatar por latencia p95 y finalmente por `RouteRef`, para determinismo.
 
-**La pregunta que tiene que contestar**, y es una sola:
+Sólo se usan fallbacks aprobados. `allow_any_eligible` puede ser persistente o un override
+de una petición. Las rutas `probe/test` nunca se promocionan por ese solo hecho.
 
-> ¿Tiene el par (proveedor, modelo) un recibo **verde** producido por **este** manifiesto y
-> **no caducado**?
-
-Tres condiciones, y las tres importan:
-
-- **verde** — un recibo rojo es evidencia de lo contrario;
-- **producido por este manifiesto** — se compara `manifest_sha256` contra el del manifiesto
-  cargado ahora. Un manifiesto editado invalida sus recibos **sin que nadie tenga que
-  acordarse**, que es la única forma en que eso ocurre de verdad;
-- **no caducado** — y aquí sí por edad, al revés que un lease.
-
-**Por qué el lease caduca por evidencia y el recibo por edad, y no es una incoherencia.**
-Un lease describe *algo que está pasando ahora* —un proceso vivo— y de eso hay evidencia
-directa en `/proc`. Un recibo describe *algo que pasó* y cuya vigencia depende del mundo
-exterior: la caché de `npx` se reescribe sola, una cuota se agota, un proveedor retira un
-modelo. No hay `/proc` que consultar para eso. La edad es un sustituto pobre y es el único
-honesto, así que el TTL va **declarado y visible**, no escondido en una constante.
-
-- [x] `ReceiptStore::{open, latest_green}` sobre el directorio de la Fase 3. `save` no se
-      duplicó: los recibos sólo los escribe el camino que los sella en `batuta-cli`
-- [x] Invalidación por `manifest_sha256`, con test: editar el manifiesto invalida el recibo
-- [x] TTL declarado, no constante mágica; y el estado «caducado» dice **cuándo** caducó
-- [x] R9: leer no toma ningún cerrojo. El aserto es de tiempo
-- [x] Un recibo ilegible **no** es un recibo ausente: `Lookup::unreadable` lo conserva
-
-Implementado en `batuta-store` durante T3 de la Fase 5 (`dbf6ab3`), que adelantó esta
-pieza porque el panel también necesitaba consultar la evidencia.
-
----
-
-## §4 `batuta-policy` — el enrutador
-
-Un `TaskSpec` entra, un `(proveedor, modelo)` sale, **o un error que dice por qué no**.
-
-Las reglas que lo gobiernan, y cada una con su forma concreta aquí:
-
-**R2 — nada se declara, se demuestra.** Una capacidad sin recibo de canario verde y vigente
-**no es enrutable**. El fallo que lo paga: `web_research` figuraba en un solo modelo y su
-transporte no navega; la delegación hizo cero llamadas a herramientas y produjo 38 KB con
-veinte citas inventadas.
-
-**R3 — la medición nunca consulta la política que informa.** `batuta-policy` **no puede
-depender de `batuta-exec`**. Se comprueba en el `Cargo.toml`, y hay un test que lo lee: la
-puerta circular devolvió su veredicto en 126 ms sin tocar la red porque el canario leía el
-mismo fichero que él debía informar.
-
-**R12 — un solo planificador para todas las entradas.** El CLI y el MCP llaman a la misma
-función. No dos caminos que «hacen lo mismo»: la misma. Se comprueba con un test que enruta
-la misma tarea por las dos superficies y exige el mismo resultado.
-
-**R13 — una perilla que nadie fija es un error de compilación.** No un `Default`, no un
-`Option` con `unwrap_or`. Si la política tiene un campo, alguien lo escribe o no compila.
-`allow_experimental` se validaba y nadie la pasaba nunca, y era la única puerta de GLM 5.3.
-
-**La decisión que hay que tomar aquí, y es del Arquitecto:** ¿un proveedor con
-`model_confirmed: false` es enrutable? Las dos respuestas son defendibles y son distintas:
-
-- **Sí, y el recibo lo dice.** Es lo que abacus permite hoy; negarlo lo dejaría fuera y
-  abacus es el proveedor que originó el proyecto.
-- **Sólo para sensibilidades bajas.** Un encargo `internal` puede correr sin confirmar el
-  modelo; uno de más arriba, no.
-
-*Recomendación:* la segunda, con el umbral **declarado en la política y no en el código**.
-Es la que conserva la información en vez de gastarla, y `Sensitivity` ya es un vocabulario
-cerrado con orden.
-
-### Bloqueo descubierto al reanudar después de la Fase 5
-
-La persistencia de la elección ya existe (`batuta-policy`, `2e4d60b`), pero el enrutador
-todavía no puede cumplir R2 sin inventar información:
-
-- `TaskSpec` exige un conjunto de `Capability` (`read`, `write`, `tools`, `web_research`);
-- `ModelEntry` sólo declara `roles` y `max_sensitivity`;
-- el recibo verde demuestra transporte, token, procedencia, herramientas **no declaradas**
-  y alcance, pero no conserva qué capacidades positivas ejercitó y demostró;
-- `ReceiptStore::latest_green` indexa por modelo/manifiesto, no por capacidad.
-
-Por tanto, un canario verde de eco no prueba `write`, y uno verde de dsh no prueba
-`web_research`. Tratarlo como si lo hiciera repetiría exactamente el fallo que paga R2.
-Antes de implementar `TaskSpec → Route` hay que cerrar este contrato con tareas acotadas:
-
-- [x] **P4.1 (20–30 min):** añadir al recibo un conjunto explícito de capacidades
-      demostradas (`3556763`), vacío para el canario básico; ida y vuelta JSON y lectura
-      compatible de recibos anteriores (campo ausente ⇒ conjunto vacío, nunca «todas»)
-- [ ] **P4.2 (20–30 min):** definir canarios de capacidad que ejerciten una capacidad real;
-      ningún manifiesto puede declararla demostrada sin ese escenario
-- [ ] **P4.3 (20–30 min):** hacer que `ReceiptStore` consulte evidencia vigente por
-      `(modelo, capacidad)` sin tomar cerrojo
-- [ ] **P4.4 (20–30 min):** añadir a `Politica` el umbral explícito de sensibilidad para
-      `model_confirmed: false`, con migración de esquema decidida antes de escribir código
-- [ ] **P4.5 (20–30 min):** implementar el selector puro y sus razones de descarte; sólo
-      después conectarlo a CLI y MCP por la misma función (R12)
-
-- [ ] `TaskSpec` → `Route { provider, model, receipt }`, o error que enumera lo descartado
-      **y por qué cada uno** (R8: un «no hay ruta» sin motivos obliga a adivinar)
-- [ ] Test: capacidad sin recibo vigente ⇒ no enrutable, nombrando la capacidad
-- [ ] Test: `batuta-policy` no depende de `batuta-exec` (se lee el `Cargo.toml`)
-- [ ] Test: la misma tarea por CLI y por MCP da la misma ruta
-- [ ] Cero `Default` en la estructura de política
-- [ ] La regla sobre `model_confirmed`, **una vez decidida**, con su test
-
----
-
-## §5 La suite de las catorce reglas
-
-El brief la pide «sin red ni disco». Eso acota lo que puede ser, y conviene decirlo antes
-de escribirla: **no todas las reglas se pueden probar sin tocar la máquina**. R6 es sobre
-procesos, R11 sobre ficheros en disco, R4 sobre el stderr de algo que corrió.
-
-Así que la suite es dos cosas, y las dos se dicen:
-
-1. **`crates/batuta-policy/tests/reglas.rs`** — las reglas cuya sustancia es pura: R2, R3,
-   R8, R10, R12, R13. Sin red y sin disco de verdad.
-2. **`docs/REGLAS.md`** — la tabla completa de las catorce, cada una con **el test concreto
-   que la cierra** y el fallo medido que la paga. Las ocho restantes ya tienen su prueba en
-   el crate donde ocurren; lo que falta no es la prueba, es poder verlas juntas.
-
-Una suite que fingiera probar R6 sin lanzar un proceso estaría probando otra cosa y
-diciendo que prueba R6. Eso es exactamente lo que este proyecto persigue.
-
-- [ ] `reglas.rs` con las seis puras
-- [ ] `docs/REGLAS.md` con las catorce, cada una con su test por nombre
-- [ ] Ninguna fila sin test: una regla sin prueba se marca **pendiente**, no se omite
-
----
-
-## §6 `batuta-mcp` — la superficie
-
-- **R7:** manifiestos y política se releen **por invocación**. Hoy el MCP del orquestador
-  viejo carga el Python al arrancar y un cambio no aplica hasta reconectar.
-- **R9:** la inspección no hace cola. Dos `orchestrator_inventory` se fueron a segundo plano
-  tras 120 s por una delegación en curso.
-- **La separación de poderes se conserva:** `accept` y `reject` **no** se exponen por MCP.
-  Aplicar un parche es acto del Arquitecto, no del modelo que lo escribió; separar las
-  superficies impide que un mismo agente escriba y se apruebe a sí mismo.
-
-- [ ] Herramientas de inspección: proveedores, modelos, recibos, leases, simulación de ruta
-- [ ] Simular una ruta **no ejecuta y no gasta**
-- [ ] Test: con una corrida viva, la inspección responde en menos de un segundo
-- [ ] Test: no existe ninguna herramienta MCP que aplique un parche
-
----
-
-## §7 El ADR de retirada de `ai-orchestrator`
-
-**Se redacta aquí y se aprueba fuera.** Un ADR es una decisión, y una decisión delegada deja
-de tener dueño.
-
-`AGENTS.md` y `CLAUDE.md` de CHUNSA mandan hoy `tools/chunsa_ai.sh` y el perfil `chunsa`.
-El ADR debe cubrir, y sin las tres no está completo:
-
-1. Qué reemplaza al ciclo `submit` → `artifact` → `accept`/`reject`.
-2. Qué pasa con los vocabularios cerrados de `task_type` (18 roles) y `gate_profile`.
-3. Qué se hace con `docs/INSTRUCTIVO_ORQUESTADOR.md`.
-
-**Ninguno de esos ficheros se toca antes de que el ADR esté aprobado.**
-
-- [ ] `docs/adr/ADR-001_RETIRADA_ORQUESTADOR.md` redactado, con las tres respuestas
-- [ ] Presentado al Arquitecto. **Nada más.**
-
----
-
-## §8 Orden, y por qué éste
+## 5. Investigación bajo demanda
 
 ```
-benchmark  →  store  →  policy  →  suite de reglas  →  mcp  →  ADR
-(medición)                                                     (decisión)
+batuta research update [--all | --route <ruta> | --action <acción>]
+batuta research status
+batuta research apply <propuesta>
 ```
 
-El benchmark va primero porque es medición y su resultado cambia lo que tiene sentido
-construir. El store va antes que la política porque la política **pregunta** y hoy no hay a
-quién. La suite va después de la política porque seis de sus reglas se prueban ahí. El MCP
-va al final de lo construible porque es una superficie sobre algo que tiene que existir. Y
-el ADR va el último porque es lo único que no se puede empezar sin haber terminado el resto:
-propone retirar una herramienta, y hasta que la que la reemplaza funciona, la propuesta es
-una opinión.
+`update` usa un perfil web-capable aprobado y escribe una propuesta inmutable en staging.
+Nunca modifica el conjunto activo. `apply` comprueba esquema, hash, fuentes, conflictos y
+confirmación explícita antes de activar. La ruta investigadora no valida su propia calidad
+sin otra fuente independiente o una evaluación local exacta. V1 admite evidencia curada;
+no implementa scrapers particulares de leaderboards.
+Una propuesta rechaza observaciones cuyo `RouteRef` sea la propia ruta investigadora;
+esas mediciones deben llegar por otra ruta o por la suite local exacta.
 
-## §9 Riesgos
+## 6. Ejemplo JSON de petición y decisión
 
-- **El TTL de los recibos es una perilla que se hereda.** Puesto corto, cada tarea dispara
-  un canario y se paga cuota constantemente; puesto largo, se enruta a un proveedor que dejó
-  de funcionar hace una semana. Va declarado y visible precisamente porque no hay valor
-  obviamente correcto.
-- **`batuta-mcp` reabre la puerta circular si se descuida.** El MCP es una superficie de
-  *inspección* y de *lanzamiento*; en el momento en que informe de un estado que él mismo
-  decide, R3 se rompe otra vez. La separación de crates es la defensa, y es estructural, no
-  de disciplina.
-- **El ADR toca ficheros de otro repositorio.** CHUNSA001 deniega `Edit` y `Write` en sus
-  propios settings, así que el ADR se redacta desde fuera. No es una laguna: es la misma
-  separación de poderes.
+```json
+{"schema_version":2,"request":{"schema_version":2,"action":"implementation","required_capabilities":["write"],"sensitivity":"internal","required_context":32000,"effort":"high","minimum_quality":78,"selection_margin":4,"predicted_tokens":32000,"allow_any_eligible":false,"allow_unverified_quality":false,"fallback":false,"class":"production","now":1787875200}}
+```
+
+```json
+{"schema_version":2,"route":"dsh/deepseek-official/deepseek-v4-flash/2026-08","effective_score":82.5,"coverage":100,"evidence_hash":"sha256:…","policy_hash":"sha256:…","discarded":[]}
+```
+
+CLI, MCP y TUI deben serializar la misma estructura producida por la misma función pura.
+
+## 7. Aceptación
+
+- Una ruta tiene puntajes diferentes por acción y por harness.
+- Cambiar pesos modifica la proyección sin mutar evidencia.
+- Fuentes incompatibles o caducadas no se promedian.
+- Una fuente sólo del fabricante no habilita producción.
+- Un override conserva el valor investigado, razón, fecha y autor.
+- Ninguna propuesta se activa sin `apply` confirmado.
+- Toda decisión enumera descartes y conserva hashes de evidencia y política.
+- MiniMax sigue siendo una ruta de DSH.
+- No hay acceso de Batuta a credenciales, saldo o suscripción.

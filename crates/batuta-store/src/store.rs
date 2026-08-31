@@ -3,6 +3,7 @@
 use std::path::{Path, PathBuf};
 use std::time::{Duration, SystemTime};
 
+use batuta_contract::Capability;
 use batuta_receipt::Receipt;
 
 use crate::error::StoreError;
@@ -104,6 +105,38 @@ impl ReceiptStore {
         manifest_sha256: &str,
         ttl: Duration,
     ) -> Result<Lookup, StoreError> {
+        self.latest_green_where(model_id, manifest_sha256, ttl, |_| true)
+    }
+
+    /// El recibo verde más reciente que además demostró `capability`.
+    ///
+    /// Un recibo anterior a P4.1 o un canario básico tiene el conjunto vacío y
+    /// por tanto nunca satisface esta consulta. Se filtra antes de elegir el
+    /// más reciente: un canario de transporte nuevo no tapa un canario de
+    /// capacidad válido y algo más antiguo.
+    ///
+    /// # Errors
+    ///
+    /// [`StoreError::Read`] si el directorio no se pudo listar.
+    pub fn latest_green_for_capability(
+        &self,
+        model_id: &str,
+        manifest_sha256: &str,
+        capability: Capability,
+        ttl: Duration,
+    ) -> Result<Lookup, StoreError> {
+        self.latest_green_where(model_id, manifest_sha256, ttl, |receipt| {
+            receipt.demonstrated_capabilities().contains(&capability)
+        })
+    }
+
+    fn latest_green_where(
+        &self,
+        model_id: &str,
+        manifest_sha256: &str,
+        ttl: Duration,
+        accepts: impl Fn(&Receipt) -> bool,
+    ) -> Result<Lookup, StoreError> {
         let mut mejor: Option<(SystemTime, Receipt)> = None;
         let mut unreadable = Vec::new();
 
@@ -138,6 +171,7 @@ impl ReceiptStore {
                     if receipt.model_requested() != model_id
                         || receipt.manifest_sha256() != manifest_sha256
                         || !receipt.verdict().is_green()
+                        || !accepts(&receipt)
                     {
                         continue;
                     }

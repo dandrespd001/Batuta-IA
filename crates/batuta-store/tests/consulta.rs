@@ -4,7 +4,7 @@ use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant, SystemTime};
 
-use batuta_contract::ProvenanceSource;
+use batuta_contract::{Capability, ProvenanceSource};
 use batuta_receipt::{MaterializedFile, ObservedProvenance, Receipt, RunFacts};
 use batuta_store::{LatestGreen, ReceiptStore};
 
@@ -107,6 +107,41 @@ fn el_recibo_verde_del_modelo_y_manifiesto_correctos_se_encuentra() {
         }
         otro => panic!("se esperaba Fresh: {otro:?}"),
     }
+}
+
+/// P4.3: un canario de transporte no demuestra herramientas; la consulta por
+/// capacidad sólo encuentra un escenario que la ejercitó explícitamente.
+#[test]
+fn la_evidencia_se_consulta_por_modelo_y_capacidad() {
+    let dir = directorio("capacidad");
+    let transporte = Receipt::seal(hechos("dsh-deepseek-v4-flash", HASH_ACTUAL));
+    escribir(&dir, &transporte, "transporte");
+
+    let store = ReceiptStore::open(dir.clone());
+    let ausente = store
+        .latest_green_for_capability(
+            "dsh-deepseek-v4-flash",
+            HASH_ACTUAL,
+            Capability::Tools,
+            Duration::from_secs(3600),
+        )
+        .unwrap();
+    assert!(matches!(ausente.result, LatestGreen::Absent));
+
+    let mut facts = hechos("dsh-deepseek-v4-flash", HASH_ACTUAL);
+    facts.demonstrated_capabilities.insert(Capability::Tools);
+    let herramientas = Receipt::seal(facts);
+    escribir(&dir, &herramientas, "herramientas");
+
+    let presente = store
+        .latest_green_for_capability(
+            "dsh-deepseek-v4-flash",
+            HASH_ACTUAL,
+            Capability::Tools,
+            Duration::from_secs(3600),
+        )
+        .unwrap();
+    assert!(matches!(presente.result, LatestGreen::Fresh { .. }));
 }
 
 /// Invalidación por `manifest_sha256`: un recibo de otro manifiesto no cuenta,

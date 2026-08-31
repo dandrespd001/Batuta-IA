@@ -1,15 +1,58 @@
-//! El parseo, a mano.
-//!
-//! Sin `clap`. Una sola orden no justifica la dependencia —R2: nada se declara,
-//! se demuestra— y lo que hay cabe en cuarenta líneas. Se añadirá cuando
-//! escribirlo a mano sea peor que depender de ello, y no antes.
+//! Parseo estricto de la línea de órdenes, separado por superficie.
 // generado: deepseek-v4-flash - revisado: Arquitecto
 
+use serde::Serialize;
+
 use crate::error::CliError;
+
+mod legacy;
+mod operational;
+mod routing;
+
+pub use operational::{ExecutionProfileCommand, ExecutorCommand, GrantCommand, RunCommand};
 
 /// Lo que se puede pedir.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Command {
+    /// Grants durables de ejecución.
+    Grant {
+        /// Suborden cerrada.
+        command: GrantCommand,
+    },
+    /// Inicia, consulta o continúa una corrida durable.
+    Run {
+        /// Suborden cerrada.
+        command: RunCommand,
+    },
+    /// Configuración operativa del ejecutor.
+    Executor {
+        /// Suborden cerrada.
+        command: ExecutorCommand,
+    },
+    /// Simula routing a partir de un sobre JSON versionado.
+    Route {
+        /// JSON literal; `None` usa fichero o stdin.
+        json: Option<String>,
+        /// Fichero JSON; `None` usa literal o stdin.
+        file: Option<String>,
+    },
+    /// Importación DSH mediante staging y aplicación confirmada.
+    Catalog {
+        /// Suborden cerrada.
+        command: CatalogCommand,
+    },
+    /// Gestión bajo demanda de evidencia investigada.
+    Research {
+        /// Suborden cerrada.
+        command: ResearchCommand,
+    },
+    /// Interfaz terminal sin servidor.
+    Tui {
+        /// Sobre JSON cuya decisión explica la interfaz al abrir.
+        route_file: Option<String>,
+    },
+    /// Servidor MCP JSON-RPC por stdio.
+    Mcp,
     /// La corrida más pequeña que demuestra que un proveedor responde.
     Canary {
         /// Qué proveedor.
@@ -18,6 +61,8 @@ pub enum Command {
         model: Option<String>,
         /// Todos sus modelos, uno tras otro.
         all: bool,
+        /// Escenario de capacidad que debe demostrar; `None` usa el eco básico.
+        capability: Option<String>,
     },
     /// La tabla que une declaración, evidencia y elección.
     Panel {
@@ -74,8 +119,65 @@ pub enum Command {
     Help,
 }
 
+/// Alcance explícito de una actualización de investigación.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub enum ResearchScope {
+    /// Todas las rutas y acciones configuradas.
+    All,
+    /// Una ruta exacta o alias que se resolverá después.
+    Route(String),
+    /// Un perfil de acción.
+    Action(String),
+}
+
+/// Subórdenes de `research`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ResearchCommand {
+    /// Crea staging; nunca activa.
+    Update {
+        /// Qué investigar.
+        scope: ResearchScope,
+    },
+    /// Muestra activo y staging.
+    Status,
+    /// Aplica una propuesta sólo con confirmación visible.
+    Apply {
+        /// Identificador de propuesta.
+        proposal: String,
+        /// Confirmación explícita.
+        confirm: bool,
+    },
+}
+
+/// Subórdenes de `catalog`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum CatalogCommand {
+    /// Normaliza un documento de descubrimiento DSH y crea staging.
+    Import {
+        /// Fichero JSON producido por la API de descubrimiento.
+        file: Option<String>,
+    },
+    /// Muestra hash activo, rutas y propuestas.
+    Status,
+    /// Activa una propuesta sólo con confirmación explícita.
+    Apply {
+        /// Identificador de propuesta.
+        proposal: String,
+        /// Presencia visible de `--confirm`.
+        confirm: bool,
+    },
+}
+
 /// Las órdenes que hay. El error de orden desconocida las enumera (R8).
 pub const COMMANDS: &[&str] = &[
+    "grant",
+    "run",
+    "executor",
+    "route",
+    "catalog",
+    "research",
+    "tui",
+    "mcp",
     "canary",
     "panel",
     "enable",
@@ -88,7 +190,7 @@ pub const COMMANDS: &[&str] = &[
 ];
 
 /// Las banderas de `canary` que llevan valor.
-pub const CANARY_FLAGS: &[&str] = &["--provider", "--model"];
+pub const CANARY_FLAGS: &[&str] = &["--provider", "--model", "--capability"];
 
 /// Los interruptores de `canary`: van solos y no llevan valor.
 pub const CANARY_SWITCHES: &[&str] = &["--all"];
@@ -105,7 +207,25 @@ pub const USAGE: &str = "\
 batuta — orquestador de delegación
 
 USO
-    batuta canary --provider <id> [--model <id>]
+    batuta grant create --file <grant.json> --confirm
+    batuta grant status <id>
+    batuta grant revoke <id> --confirm
+    batuta run [--file <request.json>]
+    batuta run status <id>
+    batuta run resume <id>
+    batuta executor profile import --file <profile.json>
+    batuta executor profile status
+    batuta executor profile apply <propuesta> --expected-hash <hash> --confirm
+    batuta route [--json <documento> | --file <ruta>]
+    batuta catalog import --file <dsh-discovery.json>
+    batuta catalog status
+    batuta catalog apply <propuesta> --confirm
+    batuta research update [--all | --route <ruta> | --action <acción>]
+    batuta research status
+    batuta research apply <propuesta> --confirm
+    batuta tui [--route <fichero-json>]
+    batuta mcp
+    batuta canary --provider <id> [--model <id>] [--capability <capacidad>]
     batuta canary --provider <id> --all
     batuta panel [--html <ruta>] [--provider <id>]
     batuta enable  <proveedor>/<modelo>
@@ -117,6 +237,14 @@ USO
     batuta help
 
 ÓRDENES
+    grant     Crea, consulta y revoca autorizaciones durables y selladas.
+    run       Ejecuta o continúa una corrida desde su estado durable.
+    executor  Gestiona el perfil operativo mediante staging, CAS y confirmación.
+    route     Simula y explica una ruta. Sin bandera de entrada lee JSON por stdin.
+    catalog   Importa DSH a staging, muestra estado o aplica con confirmación.
+    research  Actualiza staging, muestra estado o aplica una propuesta confirmada.
+    tui       Abre la interfaz terminal local, sin servidor; puede explicar un routing.
+    mcp       Atiende JSON-RPC 2.0 por stdin/stdout, una petición por línea.
     canary    Lanza el canario de un proveedor y deja su recibo en disco.
               Genera un token irrepetible, pide que lo devuelva, y comprueba
               que volvió ése. Nunca busca una subcadena en un juicio propio.
@@ -143,6 +271,8 @@ BANDERAS DE canary
     --provider <id>   El proveedor, tal como lo nombra su manifiesto.
     --model <id>      Uno de sus modelos. Obligatoria si declara más de uno:
                       con varios, batuta no elige en silencio.
+    --capability <c>  Ejecuta el escenario declarado para read, write, tools o
+                      web_research y sólo lo demuestra si observa su uso real.
     --all             Todos sus modelos, uno tras otro. Un modelo rojo no
                       detiene a los demás: el lote existe para saber cuáles
                       valen. Incompatible con --model.
@@ -184,209 +314,28 @@ pub fn parse(args: &[String]) -> Result<Command, CliError> {
 
     match primera.as_str() {
         "help" | "--help" | "-h" => Ok(Command::Help),
-        "canary" => parsear_canary(&args[1..]),
-        "panel" => parsear_panel(&args[1..]),
-        "enable" => {
-            parsear_referencia(&args[1..], "enable").map(|model_ref| Command::Enable { model_ref })
-        }
-        "disable" => parsear_referencia(&args[1..], "disable")
+        "grant" => operational::parse_grant(&args[1..]),
+        "run" => operational::parse_run(&args[1..]),
+        "executor" => operational::parse_executor(&args[1..]),
+        "route" => routing::parsear_route(&args[1..]),
+        "catalog" => routing::parsear_catalog(&args[1..]),
+        "research" => routing::parsear_research(&args[1..]),
+        "tui" => routing::parsear_tui(&args[1..]),
+        "mcp" => routing::sin_argumentos(&args[1..], "mcp", Command::Mcp),
+        "canary" => legacy::parsear_canary(&args[1..]),
+        "panel" => legacy::parsear_panel(&args[1..]),
+        "enable" => legacy::parsear_referencia(&args[1..], "enable")
+            .map(|model_ref| Command::Enable { model_ref }),
+        "disable" => legacy::parsear_referencia(&args[1..], "disable")
             .map(|model_ref| Command::Disable { model_ref }),
-        "effort" => parsear_effort(&args[1..]),
-        "nuevo-proveedor" => parsear_nuevo_proveedor(&args[1..]),
-        "nuevo-modelo" => parsear_nuevo_modelo(&args[1..]),
-        "quitar-modelo" => parsear_referencia(&args[1..], "quitar-modelo")
+        "effort" => legacy::parsear_effort(&args[1..]),
+        "nuevo-proveedor" => legacy::parsear_nuevo_proveedor(&args[1..]),
+        "nuevo-modelo" => legacy::parsear_nuevo_modelo(&args[1..]),
+        "quitar-modelo" => legacy::parsear_referencia(&args[1..], "quitar-modelo")
             .map(|model_ref| Command::QuitarModelo { model_ref }),
         otra => Err(CliError::UnknownCommand {
             given: otra.to_string(),
             available: COMMANDS.to_vec(),
-        }),
-    }
-}
-
-/// Los argumentos de `canary`, después de la orden.
-///
-/// Bandera por bandera: cada una coge el siguiente argumento como valor, y un
-/// valor que empiece por `--` no es un valor sino una bandera que vino sin el
-/// suyo. Todo lo demás —una bandera desconocida o un argumento suelto— es un
-/// `UnknownFlag` que enumera lo admitido (R8).
-fn parsear_canary(args: &[String]) -> Result<Command, CliError> {
-    let mut provider: Option<String> = None;
-    let mut model: Option<String> = None;
-    let mut all = false;
-
-    let mut indice = 0;
-    while indice < args.len() {
-        let argumento = &args[indice];
-        if CANARY_SWITCHES.contains(&argumento.as_str()) {
-            all = true;
-            indice += 1;
-        } else if CANARY_FLAGS.contains(&argumento.as_str()) {
-            let Some(valor) = args.get(indice + 1) else {
-                return Err(CliError::MissingValue {
-                    flag: argumento.clone(),
-                });
-            };
-            if valor.starts_with("--") {
-                return Err(CliError::MissingValue {
-                    flag: argumento.clone(),
-                });
-            }
-            if argumento == "--provider" {
-                provider = Some(valor.clone());
-            } else {
-                model = Some(valor.clone());
-            }
-            indice += 2;
-        } else {
-            let mut available = CANARY_FLAGS.to_vec();
-            available.extend_from_slice(CANARY_SWITCHES);
-            return Err(CliError::UnknownFlag {
-                given: argumento.clone(),
-                available,
-            });
-        }
-    }
-
-    // Contradecirse es un error, no una preferencia que batuta resuelva por su
-    // cuenta: elegir en silencio entre dos instrucciones incompatibles es la
-    // forma exacta en que se pidió un modelo y corrió otro.
-    if all && model.is_some() {
-        return Err(CliError::ContradictoryFlags {
-            one: "--all",
-            other: "--model",
-        });
-    }
-
-    let provider = provider.ok_or(CliError::MissingFlag { flag: "--provider" })?;
-    Ok(Command::Canary {
-        provider,
-        model,
-        all,
-    })
-}
-
-/// Los argumentos de `panel`, después de la orden.
-///
-/// Dos banderas con valor (`--provider`, `--html`), en cualquier orden: el
-/// mismo patrón que `parsear_canary` ya usa para `--provider`/`--model`.
-/// Ninguna de las dos se valida ni se interpreta aquí —`--html` guarda la
-/// ruta tal cual, como texto; convertirla a `Path` es trabajo de quien
-/// ejecuta la orden.
-fn parsear_panel(args: &[String]) -> Result<Command, CliError> {
-    let mut provider: Option<String> = None;
-    let mut html: Option<String> = None;
-
-    let mut indice = 0;
-    while indice < args.len() {
-        let argumento = &args[indice];
-        if PANEL_FLAGS.contains(&argumento.as_str()) {
-            let Some(valor) = args.get(indice + 1) else {
-                return Err(CliError::MissingValue {
-                    flag: argumento.clone(),
-                });
-            };
-            if valor.starts_with("--") {
-                return Err(CliError::MissingValue {
-                    flag: argumento.clone(),
-                });
-            }
-            if argumento == "--provider" {
-                provider = Some(valor.clone());
-            } else {
-                html = Some(valor.clone());
-            }
-            indice += 2;
-        } else {
-            return Err(CliError::UnknownFlag {
-                given: argumento.clone(),
-                available: PANEL_FLAGS.to_vec(),
-            });
-        }
-    }
-
-    Ok(Command::Panel { provider, html })
-}
-
-/// Un único posicional: `<proveedor>/<modelo>`, sin partir todavía. Partirlo y
-/// comprobar que existe es trabajo de `eleccion`, que sí conoce los
-/// manifiestos; aquí sólo se cuenta cuántos argumentos llegaron.
-fn parsear_referencia(args: &[String], comando: &'static str) -> Result<String, CliError> {
-    match args {
-        [referencia] => Ok(referencia.clone()),
-        [] => Err(CliError::MissingArgument {
-            command: comando,
-            argument: "<proveedor>/<modelo>",
-        }),
-        [_, sobra, ..] => Err(CliError::UnexpectedArgument {
-            command: comando,
-            given: sobra.clone(),
-        }),
-    }
-}
-
-/// `effort` lleva dos posicionales: la referencia y el nivel.
-fn parsear_effort(args: &[String]) -> Result<Command, CliError> {
-    match args {
-        [referencia, nivel] => Ok(Command::Effort {
-            model_ref: referencia.clone(),
-            level: nivel.clone(),
-        }),
-        [] => Err(CliError::MissingArgument {
-            command: "effort",
-            argument: "<proveedor>/<modelo>",
-        }),
-        [_referencia] => Err(CliError::MissingArgument {
-            command: "effort",
-            argument: "<nivel>",
-        }),
-        [_, _, sobra, ..] => Err(CliError::UnexpectedArgument {
-            command: "effort",
-            given: sobra.clone(),
-        }),
-    }
-}
-
-/// `nuevo-proveedor` lleva un único posicional: el id. Su forma se valida
-/// contra `ProviderId` más tarde, en `declaracion::nuevo_proveedor` —aquí
-/// sólo se cuenta cuántos argumentos llegaron, igual que en
-/// [`parsear_referencia`].
-fn parsear_nuevo_proveedor(args: &[String]) -> Result<Command, CliError> {
-    match args {
-        [id] => Ok(Command::NuevoProveedor { id: id.clone() }),
-        [] => Err(CliError::MissingArgument {
-            command: "nuevo-proveedor",
-            argument: "<id>",
-        }),
-        [_, sobra, ..] => Err(CliError::UnexpectedArgument {
-            command: "nuevo-proveedor",
-            given: sobra.clone(),
-        }),
-    }
-}
-
-/// `nuevo-modelo` lleva tres posicionales: proveedor, id y `route_model`.
-fn parsear_nuevo_modelo(args: &[String]) -> Result<Command, CliError> {
-    match args {
-        [provider, id, route_model] => Ok(Command::NuevoModelo {
-            provider: provider.clone(),
-            id: id.clone(),
-            route_model: route_model.clone(),
-        }),
-        [] => Err(CliError::MissingArgument {
-            command: "nuevo-modelo",
-            argument: "<proveedor>",
-        }),
-        [_provider] => Err(CliError::MissingArgument {
-            command: "nuevo-modelo",
-            argument: "<id>",
-        }),
-        [_provider, _id] => Err(CliError::MissingArgument {
-            command: "nuevo-modelo",
-            argument: "<ruta>",
-        }),
-        [_, _, _, sobra, ..] => Err(CliError::UnexpectedArgument {
-            command: "nuevo-modelo",
-            given: sobra.clone(),
         }),
     }
 }

@@ -30,6 +30,9 @@ jobs:
       - name: cero E/S (no_std)
         run: grep -qx '#!\[no_std\]' crates/batuta-contract/src/lib.rs
 
+      - name: sidecar DSH offline
+        run: node sidecar/test_dsh_catalog.mjs
+
       - name: clippy
         run: cargo clippy --workspace --all-targets -- -D warnings
 

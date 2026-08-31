@@ -15,9 +15,9 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 
 use batuta_contract::{
-    AuthMethod, CanaryExpectation, DocumentFormat, EnvVarName, ModelId, ParserKind, PromptDelivery,
-    ProvenanceSource, ProviderId, ProviderKind, ReasoningEffort, Role, RouteModel, SchemaVersion,
-    Sensitivity, WriteMode,
+    AuthMethod, CanaryExpectation, Capability, DocumentFormat, EnvVarName, ModelId, ParserKind,
+    PromptDelivery, ProvenanceSource, ProviderId, ProviderKind, ReasoningEffort, Role, RouteModel,
+    SchemaVersion, Sensitivity, WriteMode,
 };
 use serde::Deserialize;
 use toml::Spanned;
@@ -86,6 +86,16 @@ pub struct ModelEntry {
 pub struct Canary {
     prompt: String,
     expect: CanaryExpectation,
+    scenarios: Vec<CapabilityCanary>,
+}
+
+/// Escenario que debe ejercer una capacidad observable concreta.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CapabilityCanary {
+    capability: Capability,
+    prompt: String,
+    expect: CanaryExpectation,
+    declared_tools: Vec<String>,
 }
 
 /// Manifiesto coherente: existe, luego cumple sus invariantes.
@@ -226,6 +236,17 @@ struct ModelDraft {
 struct CanaryDraft {
     prompt: String,
     expect: Spanned<String>,
+    #[serde(default)]
+    scenarios: Vec<CapabilityCanaryDraft>,
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct CapabilityCanaryDraft {
+    capability: Spanned<String>,
+    prompt: String,
+    expect: Spanned<String>,
+    tools: Vec<String>,
 }
 
 impl ProviderManifest {
@@ -724,10 +745,42 @@ fn validar_canary(
     origin: &Path,
     canary: CanaryDraft,
 ) -> Result<Canary, ManifestError> {
-    let CanaryDraft { prompt, expect } = canary;
+    let CanaryDraft {
+        prompt,
+        expect,
+        scenarios: scenario_drafts,
+    } = canary;
+    let mut scenarios = Vec::new();
+    let mut seen = BTreeSet::new();
+    for (index, scenario) in scenario_drafts.into_iter().enumerate() {
+        let capability = vocabulary::<Capability>(
+            source,
+            origin,
+            &scenario.capability,
+            &format!("canary.scenarios[{index}].capability"),
+        )?;
+        if !seen.insert(capability) {
+            return Err(ManifestError::DuplicateCanaryCapability {
+                at: location_at(source, scenario.capability.span(), origin),
+                capability,
+            });
+        }
+        scenarios.push(CapabilityCanary {
+            capability,
+            prompt: scenario.prompt,
+            expect: vocabulary::<CanaryExpectation>(
+                source,
+                origin,
+                &scenario.expect,
+                &format!("canary.scenarios[{index}].expect"),
+            )?,
+            declared_tools: scenario.tools,
+        });
+    }
     Ok(Canary {
         prompt,
         expect: vocabulary::<CanaryExpectation>(source, origin, &expect, "canary.expect")?,
+        scenarios,
     })
 }
 
@@ -1191,5 +1244,39 @@ impl Canary {
     /// Qué se comprueba, y se comprueba **observando** (R3).
     pub fn expect(&self) -> CanaryExpectation {
         self.expect
+    }
+
+    /// Escenarios de capacidades reales declarados por el proveedor.
+    pub fn scenarios(&self) -> &[CapabilityCanary] {
+        &self.scenarios
+    }
+
+    /// Escenario único de una capacidad, si está declarado.
+    pub fn scenario(&self, capability: Capability) -> Option<&CapabilityCanary> {
+        self.scenarios
+            .iter()
+            .find(|scenario| scenario.capability == capability)
+    }
+}
+
+impl CapabilityCanary {
+    /// Capacidad que este escenario pretende ejercer y luego observar.
+    pub const fn capability(&self) -> Capability {
+        self.capability
+    }
+
+    /// Prompt específico, con `{token}` todavía sin sustituir.
+    pub fn prompt(&self) -> &str {
+        &self.prompt
+    }
+
+    /// Expectativa observable de salida.
+    pub const fn expect(&self) -> CanaryExpectation {
+        self.expect
+    }
+
+    /// Herramientas que este escenario autoriza de forma explícita.
+    pub fn declared_tools(&self) -> &[String] {
+        &self.declared_tools
     }
 }
