@@ -144,15 +144,15 @@ snapshot alterado, task inexistente, requisito desconocido y campos extra.
 
 ### Tests for User Story 3 ⚠️
 
-- [ ] T026 [P] [US3] Ampliar preservación exacta de las siete rutas selladas —los seis artefactos V1 en `artifacts` más el registro de corrida en `run_records`— y de los 19 registros V1, con todas las mutaciones V2 de la matriz, en `scripts_ci/tests/test_validate_tdd_evidence.py` [REQ-SDD-007]
-- [ ] T027 [P] [US3] Crear fixtures V2 inválidos por clase en `scripts_ci/tests/fixtures/tdd_evidence/` [REQ-SDD-007]
+- [x] T026 [P] [US3] Ampliar preservación exacta de las siete rutas selladas —los seis artefactos V1 en `artifacts` más el registro de corrida en `run_records`— y de los 19 registros V1, con todas las mutaciones V2 de la matriz, en `scripts_ci/tests/test_validate_tdd_evidence.py` [REQ-SDD-007]
+- [x] T027 [P] [US3] Crear fixtures V2 inválidos por clase en `scripts_ci/tests/fixtures/tdd_evidence/` [REQ-SDD-007]
 
 ### Implementation for User Story 3
 
-- [ ] T028 [P] [US3] Publicar `EvidenceRecordV2` cerrado en `specs/schemas/evidence-record-v2.schema.json` [REQ-SDD-007]
-- [ ] T029 [US3] Añadir despacho legado/V2, `tdd` frente a `reconstructed_audit`, anchors, task y snapshot a `scripts_ci/validate_tdd_evidence.py` [REQ-SDD-007]
-- [ ] T030 [US3] Crear el snapshot direccionado por contenido y el primer registro V2 en `docs/evidence/specs/` y `docs/evidence/tdd-v2.jsonl` [REQ-SDD-007]
-- [ ] T031 [US3] Documentar procedencia `reconstructed_audit` y preservación en `specs/system/product.md` y `docs/DOCUMENT_CLASSIFICATION.md` [REQ-SDD-011, REQ-SDD-012]
+- [x] T028 [P] [US3] Publicar `EvidenceRecordV2` cerrado en `specs/schemas/evidence-record-v2.schema.json` [REQ-SDD-007]
+- [x] T029 [US3] Añadir despacho legado/V2, `tdd` frente a `reconstructed_audit`, anchors, task y snapshot a `scripts_ci/validate_tdd_evidence.py` [REQ-SDD-007]
+- [x] T030 [US3] Crear el snapshot direccionado por contenido y el primer registro V2 en `docs/evidence/specs/` y `docs/evidence/tdd-v2.jsonl` [REQ-SDD-007]
+- [x] T031 [US3] Documentar procedencia `reconstructed_audit` y preservación en `specs/system/product.md` y `docs/DOCUMENT_CLASSIFICATION.md` [REQ-SDD-011, REQ-SDD-012]
 
 **Checkpoint**: US3 demuestra continuidad histórica sin modificar ninguno de los seis artefactos V1.
 

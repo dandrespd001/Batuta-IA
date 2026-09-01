@@ -25,10 +25,12 @@ mutabilidad. `null` significa que no existe una supersesión aplicable. Las clas
 | `docs/TRAZABILIDAD_ROUTING_V2.md` | `evidence` | `specs/anchors.json` | `false` | `null` | `immutable` |
 | `docs/adr/ADR-0001-spec-anchored-governance.md` | `decision` | `null` | `false` | `null` | `immutable` |
 | `docs/evidence/baseline.json` | `evidence` | `null` | `false` | `null` | `immutable` |
+| `docs/evidence/specs/26e21c8e651c17bf20758f160570c6ec11e31e3acc6d01b3d574836693e2e5e2.md` | `evidence` | `null` | `false` | `null` | `immutable` |
 | `docs/evidence/specs/59ddd6234aee1a95fc7db4ecfaeee0ced3befe140190f305f21e00b0f42139f7.md` | `evidence` | `null` | `false` | `null` | `immutable` |
 | `docs/evidence/specs/8d1e228e24c449136102608028b2b37403c4624529712d4e00ceba2979999042.md` | `evidence` | `null` | `false` | `null` | `immutable` |
 | `docs/evidence/specs/9274306a9ad4a83ad9e061e4617d7e547e62f841ebd8c5373a554b17e812a70a.md` | `evidence` | `null` | `false` | `null` | `immutable` |
 | `docs/evidence/specs/b4ef1a975e590d84f6b29b5787139f1aea3cd7c2d82190c774e6e567c9d42872.md` | `evidence` | `null` | `false` | `null` | `immutable` |
+| `docs/evidence/tdd-v2.jsonl` | `evidence` | `null` | `false` | `null` | `append_only` |
 | `docs/evidence/tdd.jsonl` | `evidence` | `null` | `false` | `null` | `immutable` |
 | `docs/evidence/tdd.schema.json` | `evidence` | `null` | `false` | `null` | `immutable` |
 | `docs/evidence/v1-baseline.json` | `evidence` | `null` | `false` | `null` | `immutable` |
@@ -64,6 +66,7 @@ mutabilidad. `null` significa que no existe una supersesión aplicable. Las clas
 | `specs/001-adopt-spec-anchoring/tasks.md` | `guide` | `null` | `false` | `null` | `living` |
 | `specs/README.md` | `guide` | `null` | `false` | `null` | `living` |
 | `specs/anchors.json` | `guide` | `null` | `false` | `null` | `living` |
+| `specs/schemas/evidence-record-v2.schema.json` | `normative` | `null` | `false` | `null` | `living` |
 | `specs/schemas/feature-impact-v1.schema.json` | `normative` | `null` | `false` | `null` | `living` |
 | `specs/schemas/spec-anchor-registry-v1.schema.json` | `normative` | `null` | `false` | `null` | `living` |
 | `specs/system/execution.md` | `normative` | `null` | `false` | `null` | `living` |
@@ -73,6 +76,18 @@ mutabilidad. `null` significa que no existe una supersesión aplicable. Las clas
 | `specs/system/rollout.md` | `normative` | `null` | `false` | `null` | `living` |
 | `specs/system/state-policy-routing.md` | `normative` | `null` | `false` | `null` | `living` |
 | `specs/system/surfaces.md` | `normative` | `null` | `false` | `null` | `living` |
+
+## Procedencia de la evidencia K4
+
+La adopción reconstruyó el inventario inicial desde el baseline K4 sellado, por lo que esa actividad
+se clasifica como `reconstructed_audit`: prueba el estado observado después de la implementación y no
+una secuencia red-green contemporánea. Esta clasificación no altera las etiquetas internas ni los
+bytes de los 19 registros V1.
+
+`docs/evidence/v1-baseline.json` enumera los seis artefactos V1 en `artifacts` y, por separado, el
+registro histórico de corrida en `run_records`; las siete rutas son inmutables. La evidencia nueva se
+añade únicamente a `docs/evidence/tdd-v2.jsonl`, cuyos registros declaran de forma individual `tdd` o
+`reconstructed_audit` y enlazan un snapshot inmutable direccionado por contenido.
 
 ## Matrices de paridad de autoridades heredadas
 

@@ -58,5 +58,7 @@
     "success_check": "Confirmar que los hashes V1 siguen verdes y que no quedan referencias activas a la autoridad del paquete 001."
   },
   "living_specs_updated": true,
-  "characterization": []
+  "characterization": [
+    "scripts_ci/tests/test_validate_tdd_evidence.py"
+  ]
 }
