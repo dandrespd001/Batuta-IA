@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "operations": [
+    {
+      "operation": "add",
+      "pointer": "/capabilities/0/unexpected",
+      "value": true
+    }
+  ],
+  "diagnostic": "SCHEMA_UNKNOWN_FIELD",
+  "exit_code": 1
+}

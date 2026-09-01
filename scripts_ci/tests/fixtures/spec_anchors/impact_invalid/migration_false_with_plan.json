@@ -1,0 +1,7 @@
+{
+  "operations": [
+    {"operation": "set", "pointer": "/migration/plan", "value": "No debe existir."}
+  ],
+  "diagnostic": "SCHEMA_CONDITIONAL_INVALID",
+  "exit_code": 1
+}

@@ -1,0 +1,63 @@
+{
+  "schema_version": 1,
+  "baseline_commit": "7de68af2c9a36ba3dcc65971e4bba83231fb3855",
+  "generated_from": "specs/system/product.md",
+  "capabilities": [
+    {
+      "id": "CAP-CONTRACTS",
+      "title": "Contratos cerrados",
+      "owner_spec": "specs/system/product.md",
+      "code_paths": [
+        "crates/example/src"
+      ],
+      "status": "implemented",
+      "requirements": [
+        {
+          "id": "REQ-CONTRACTS-001",
+          "statement": "Los contratos rechazan formas desconocidas.",
+          "status": "implemented",
+          "verifications": [
+            {
+              "kind": "test",
+              "path": "tests/contracts.rs",
+              "selector": "contratos_cerrados"
+            }
+          ]
+        }
+      ],
+      "evidence": [
+        "docs/evidence/audit.json"
+      ],
+      "roadmap_id": null,
+      "protocol": null
+    },
+    {
+      "id": "CAP-ROLLOUT",
+      "title": "Despliegue externo",
+      "owner_spec": "specs/system/rollout.md",
+      "code_paths": [
+        "docs/protocols/rollout.md"
+      ],
+      "status": "external",
+      "requirements": [
+        {
+          "id": "REQ-ROLLOUT-001",
+          "statement": "La evidencia primaria se recoge con autorización externa.",
+          "status": "external",
+          "verifications": [
+            {
+              "kind": "manual_protocol",
+              "path": "docs/protocols/rollout.md",
+              "selector": null
+            }
+          ]
+        }
+      ],
+      "evidence": [
+        "docs/evidence/audit.json"
+      ],
+      "roadmap_id": "RM-007",
+      "protocol": "docs/protocols/rollout.md"
+    }
+  ]
+}

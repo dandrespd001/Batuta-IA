@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "operations": [
+    {
+      "operation": "set",
+      "pointer": "/capabilities/0/code_paths/0",
+      "value": "../escape"
+    }
+  ],
+  "diagnostic": "ANCHOR_PATH_UNSAFE",
+  "exit_code": 1
+}

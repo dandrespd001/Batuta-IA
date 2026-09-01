@@ -1,0 +1,7 @@
+{
+  "operations": [
+    {"operation": "set", "pointer": "/requirements/0", "value": "REQ-bad"}
+  ],
+  "diagnostic": "SCHEMA_VALUE_INVALID",
+  "exit_code": 1
+}

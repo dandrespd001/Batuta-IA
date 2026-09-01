@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "operations": [
+    {
+      "operation": "set",
+      "pointer": "/capabilities/0/requirements/0/status",
+      "value": "deprecated"
+    }
+  ],
+  "diagnostic": "ANCHOR_STATUS_MISMATCH",
+  "exit_code": 1
+}

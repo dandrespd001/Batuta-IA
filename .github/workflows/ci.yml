@@ -13,6 +13,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: toolchain
         run: |
@@ -22,19 +24,9 @@ jobs:
 
       - uses: Swatinem/rust-cache@v2
 
-      - name: formato
-        run: cargo fmt --all --check
-
-      # `batuta-contract` es no_std a propósito: es lo que demuestra que no hace
-      # E/S. Perder el atributo sería perder la propiedad sin que nada falle.
-      - name: cero E/S (no_std)
-        run: grep -qx '#!\[no_std\]' crates/batuta-contract/src/lib.rs
-
-      - name: sidecar DSH offline
-        run: node sidecar/test_dsh_catalog.mjs
-
-      - name: clippy
-        run: cargo clippy --workspace --all-targets -- -D warnings
-
-      - name: tests
-        run: cargo test --workspace
+      - name: gates locales con base Git obligatoria
+        env:
+          BATUTA_SPEC_BASE: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          test -n "$BATUTA_SPEC_BASE"
+          ./scripts_ci/local_gates.sh

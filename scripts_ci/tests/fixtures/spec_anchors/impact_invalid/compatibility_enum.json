@@ -1,0 +1,7 @@
+{
+  "operations": [
+    {"operation": "set", "pointer": "/compatibility/public_contract", "value": "mostly-compatible"}
+  ],
+  "diagnostic": "SCHEMA_UNKNOWN_ENUM",
+  "exit_code": 1
+}

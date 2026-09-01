@@ -1,0 +1,513 @@
+{
+  "schema_version": 1,
+  "baseline_commit": "7de68af2c9a36ba3dcc65971e4bba83231fb3855",
+  "generated_from": "specs/system/product.md",
+  "capabilities": [
+    {
+      "id": "CAP-CONTRACTS",
+      "title": "Contratos de dominio cerrados",
+      "owner_spec": "specs/system/product.md",
+      "code_paths": [
+        "crates/batuta-contract/src"
+      ],
+      "status": "implemented",
+      "requirements": [
+        {
+          "id": "REQ-CONTRACTS-001",
+          "statement": "Los IDs y vocabularios públicos son cerrados, validables y deterministas.",
+          "status": "implemented",
+          "verifications": [
+            {
+              "kind": "test",
+              "path": "crates/batuta-contract/tests/identificadores.rs",
+              "selector": "los_identificadores_hacen_ida_y_vuelta_por_serde"
+            }
+          ]
+        },
+        {
+          "id": "REQ-CONTRACTS-002",
+          "statement": "La frontera de contratos permanece no_std y no realiza E/S.",
+          "status": "implemented",
+          "verifications": [
+            {
+              "kind": "gate",
+              "path": "scripts_ci/local_gates.sh",
+              "selector": "comprobar_no_std"
+            }
+          ]
+        }
+      ],
+      "evidence": [
+        "docs/evidence/tdd.jsonl"
+      ],
+      "roadmap_id": "RM-002",
+      "protocol": null
+    },
+    {
+      "id": "CAP-EXECUTION",
+      "title": "Ejecución durable",
+      "owner_spec": "specs/system/execution.md",
+      "code_paths": [
+        "crates/batuta-exec/src",
+        "crates/batuta-routing/src/coordinator",
+        "crates/batuta-routing/src/handoff.rs",
+        "crates/batuta-routing/src/run_receipt_v2"
+      ],
+      "status": "implemented",
+      "requirements": [
+        {
+          "id": "REQ-EXECUTION-001",
+          "statement": "Cada run persiste transiciones y mantiene una sola ruta activa.",
+          "status": "implemented",
+          "verifications": [
+            {
+              "kind": "test",
+              "path": "crates/batuta-cli/tests/operational_api.rs",
+              "selector": "run_y_status_comparten_sobre_y_estado_durable_con_un_fake"
+            }
+          ]
+        },
+        {
+          "id": "REQ-EXECUTION-002",
+          "statement": "Retry y relevo usan hechos observados, reservas y checkpoints acotados.",
+          "status": "implemented",
+          "verifications": [
+            {
+              "kind": "test",
+              "path": "crates/batuta-routing/tests/coordinator_acceptance.rs",
+              "selector": "cada_fallo_conocido_sin_retry_valido_releva_sin_historial"
+            }
+          ]
+        },
+        {
+          "id": "REQ-EXECUTION-003",
+          "statement": "Los recibos terminales son cerrados, sellados, append-only y recuperables.",
+          "status": "implemented",
+          "verifications": [
+            {
+              "kind": "test",
+              "path": "crates/batuta-routing/tests/run_receipt_v2.rs",
+              "selector": "reinicio_conserva_bytes_y_un_id_no_se_sobrescribe"
+            }
+          ]
+        }
+      ],
+      "evidence": [
+        "docs/evidence/tdd.jsonl"
+      ],
+      "roadmap_id": null,
+      "protocol": null
+    },
+    {
+      "id": "CAP-LEGACY",
+      "title": "Órdenes V1 de compatibilidad",
+      "owner_spec": "specs/system/surfaces.md",
+      "code_paths": [
+        "crates/batuta-cli/src/args/legacy.rs",
+        "crates/batuta-cli/src/main_handlers/legacy.rs"
+      ],
+      "status": "deprecated",
+      "requirements": [
+        {
+          "id": "REQ-LEGACY-001",
+          "statement": "Las órdenes V1 conservan compatibilidad durante su ventana de deprecación.",
+          "status": "deprecated",
+          "verifications": [
+            {
+              "kind": "test",
+              "path": "crates/batuta-cli/tests/linea_de_ordenes.rs",
+              "selector": "canary_con_proveedor_y_modelo_se_entiende"
+            }
+          ]
+        }
+      ],
+      "evidence": [
+        "docs/evidence/tdd.jsonl"
+      ],
+      "roadmap_id": "RM-008",
+      "protocol": null
+    },
+    {
+      "id": "CAP-MANIFESTS",
+      "title": "Manifests de proveedor",
+      "owner_spec": "specs/system/manifests.md",
+      "code_paths": [
+        "crates/batuta-manifest/src",
+        "providers"
+      ],
+      "status": "implemented",
+      "requirements": [
+        {
+          "id": "REQ-MANIFESTS-001",
+          "statement": "Los manifests versionados rechazan campos, rutas y formas desconocidas.",
+          "status": "implemented",
+          "verifications": [
+            {
+              "kind": "test",
+              "path": "crates/batuta-manifest/tests/carga.rs",
+              "selector": "un_campo_desconocido_falla_al_cargar_y_lo_nombra"
+            }
+          ]
+        },
+        {
+          "id": "REQ-MANIFESTS-002",
+          "statement": "Pins, hashes y procedencia distinguen lo pedido de lo observado.",
+          "status": "implemented",
+          "verifications": [
+            {
+              "kind": "test",
+              "path": "crates/batuta-manifest/tests/carga.rs",
+              "selector": "la_procedencia_distingue_lo_observado_de_lo_prometido"
+            },
+            {
+              "kind": "test",
+              "path": "crates/batuta-manifest/tests/sha256_bordes.rs",
+              "selector": "un_hash_que_no_cuadra_se_rechaza"
+            }
+          ]
+        }
+      ],
+      "evidence": [
+        "docs/evidence/tdd.jsonl"
+      ],
+      "roadmap_id": "RM-002",
+      "protocol": null
+    },
+    {
+      "id": "CAP-POLICY",
+      "title": "Política operativa",
+      "owner_spec": "specs/system/state-policy-routing.md",
+      "code_paths": [
+        "crates/batuta-policy/src",
+        "crates/batuta-routing/src/execution_profile_store.rs",
+        "crates/batuta-routing/src/policy.rs",
+        "crates/batuta-routing/src/policy_migration.rs"
+      ],
+      "status": "partial",
+      "requirements": [
+        {
+          "id": "REQ-POLICY-001",
+          "statement": "La política activa es cerrada, explícita y resuelve aliases exactos.",
+          "status": "implemented",
+          "verifications": [
+            {
+              "kind": "test",
+              "path": "crates/batuta-routing/tests/policy.rs",
+              "selector": "cada_alias_resuelve_una_ruta_exacta"
+            }
+          ]
+        },
+        {
+          "id": "REQ-POLICY-002",
+          "statement": "Toda la política debe adoptar propuesta, confirmación, CAS y rollback comunes.",
+          "status": "partial",
+          "verifications": [
+            {
+              "kind": "test",
+              "path": "crates/batuta-routing/tests/policy_migration.rs",
+              "selector": "dry_run_no_escribe_y_apply_conserva_v1_recuperable"
+            },
+            {
+              "kind": "manual_protocol",
+              "path": "specs/system/state-policy-routing.md",
+              "selector": null
+            }
+          ]
+        }
+      ],
+      "evidence": [
+        "docs/evidence/tdd.jsonl"
+      ],
+      "roadmap_id": "RM-004",
+      "protocol": "specs/system/state-policy-routing.md"
+    },
+    {
+      "id": "CAP-QUALITY",
+      "title": "Calidad verificable",
+      "owner_spec": "specs/system/quality-research.md",
+      "code_paths": [
+        "crates/batuta-quality/src/model.rs",
+        "crates/batuta-quality/src/projection.rs",
+        "crates/batuta-quality/src/store.rs"
+      ],
+      "status": "implemented",
+      "requirements": [
+        {
+          "id": "REQ-QUALITY-001",
+          "statement": "La proyección usa sólo evidencia compatible por ruta y acción.",
+          "status": "implemented",
+          "verifications": [
+            {
+              "kind": "test",
+              "path": "crates/batuta-quality/tests/calidad.rs",
+              "selector": "q1_las_observaciones_incompatibles_no_se_promedian"
+            }
+          ]
+        },
+        {
+          "id": "REQ-QUALITY-002",
+          "statement": "Los overrides append-only conservan valor investigado y verificación real.",
+          "status": "implemented",
+          "verifications": [
+            {
+              "kind": "test",
+              "path": "crates/batuta-quality/tests/calidad.rs",
+              "selector": "q5_el_override_conserva_el_valor_investigado_y_no_inventa_verificacion"
+            }
+          ]
+        }
+      ],
+      "evidence": [
+        "docs/evidence/tdd.jsonl"
+      ],
+      "roadmap_id": "RM-003",
+      "protocol": null
+    },
+    {
+      "id": "CAP-RESEARCH",
+      "title": "Investigación de calidad",
+      "owner_spec": "specs/system/quality-research.md",
+      "code_paths": [
+        "crates/batuta-cli/src/research.rs",
+        "crates/batuta-quality/src/research.rs",
+        "crates/batuta-quality/src/store.rs"
+      ],
+      "status": "partial",
+      "requirements": [
+        {
+          "id": "REQ-RESEARCH-001",
+          "statement": "Las propuestas se sellan en staging y sólo se activan con confirmación válida.",
+          "status": "implemented",
+          "verifications": [
+            {
+              "kind": "test",
+              "path": "crates/batuta-quality/tests/research.rs",
+              "selector": "q6_stage_no_modifica_evidencia_activa_y_apply_exige_confirmacion"
+            }
+          ]
+        },
+        {
+          "id": "REQ-RESEARCH-002",
+          "statement": "Research update debe completar síncronamente consulta, normalización y staging.",
+          "status": "partial",
+          "verifications": [
+            {
+              "kind": "test",
+              "path": "crates/batuta-cli/tests/routing_surfaces.rs",
+              "selector": "route_tui_mcp_y_research_parsean"
+            },
+            {
+              "kind": "manual_protocol",
+              "path": "specs/system/quality-research.md",
+              "selector": null
+            }
+          ]
+        }
+      ],
+      "evidence": [
+        "docs/evidence/tdd.jsonl"
+      ],
+      "roadmap_id": "RM-005",
+      "protocol": "specs/system/quality-research.md"
+    },
+    {
+      "id": "CAP-ROLLOUT",
+      "title": "Evidencia externa y canarios reales",
+      "owner_spec": "specs/system/rollout.md",
+      "code_paths": [
+        "docs/medidas"
+      ],
+      "status": "external",
+      "requirements": [
+        {
+          "id": "REQ-ROLLOUT-001",
+          "statement": "Las afirmaciones de proveedor requieren evidencia primaria sellada.",
+          "status": "external",
+          "verifications": [
+            {
+              "kind": "manual_protocol",
+              "path": "specs/system/rollout.md",
+              "selector": null
+            }
+          ]
+        },
+        {
+          "id": "REQ-ROLLOUT-002",
+          "statement": "Los benchmarks V2 deben ser reproducibles y conservar datos brutos.",
+          "status": "external",
+          "verifications": [
+            {
+              "kind": "manual_protocol",
+              "path": "specs/system/rollout.md",
+              "selector": null
+            }
+          ]
+        },
+        {
+          "id": "REQ-ROLLOUT-003",
+          "statement": "La comparación V3 debe usar criterios iguales y publicar exclusiones.",
+          "status": "external",
+          "verifications": [
+            {
+              "kind": "manual_protocol",
+              "path": "specs/system/rollout.md",
+              "selector": null
+            }
+          ]
+        },
+        {
+          "id": "REQ-ROLLOUT-004",
+          "statement": "Los canarios reales requieren efectos exactos y autorización independiente.",
+          "status": "external",
+          "verifications": [
+            {
+              "kind": "manual_protocol",
+              "path": "specs/system/rollout.md",
+              "selector": null
+            }
+          ]
+        }
+      ],
+      "evidence": [
+        "docs/evidence/tdd.jsonl"
+      ],
+      "roadmap_id": "RM-007",
+      "protocol": "specs/system/rollout.md"
+    },
+    {
+      "id": "CAP-ROUTING",
+      "title": "Selección sellada",
+      "owner_spec": "specs/system/state-policy-routing.md",
+      "code_paths": [
+        "crates/batuta-routing/src/assembly.rs",
+        "crates/batuta-routing/src/selector.rs"
+      ],
+      "status": "implemented",
+      "requirements": [
+        {
+          "id": "REQ-ROUTING-001",
+          "statement": "Elegibilidad, calidad, coste y desempate producen selección determinista.",
+          "status": "implemented",
+          "verifications": [
+            {
+              "kind": "test",
+              "path": "crates/batuta-routing/tests/selector.rs",
+              "selector": "elige_la_mas_barata_dentro_del_margen_de_calidad"
+            }
+          ]
+        },
+        {
+          "id": "REQ-ROUTING-002",
+          "statement": "La decisión sella una generación y todos sus componentes ordenados.",
+          "status": "implemented",
+          "verifications": [
+            {
+              "kind": "test",
+              "path": "crates/batuta-routing/tests/sealed_decision.rs",
+              "selector": "decision_sella_manifest_componentes_y_recibos_en_orden"
+            }
+          ]
+        }
+      ],
+      "evidence": [
+        "docs/evidence/tdd.jsonl"
+      ],
+      "roadmap_id": "RM-003",
+      "protocol": null
+    },
+    {
+      "id": "CAP-STATE",
+      "title": "Estado generacional",
+      "owner_spec": "specs/system/state-policy-routing.md",
+      "code_paths": [
+        "crates/batuta-routing/src/snapshot_store.rs",
+        "crates/batuta-routing/src/state_store.rs"
+      ],
+      "status": "partial",
+      "requirements": [
+        {
+          "id": "REQ-STATE-001",
+          "statement": "El manifest publica objetos inmutables por hash mediante commit atómico y CAS.",
+          "status": "implemented",
+          "verifications": [
+            {
+              "kind": "test",
+              "path": "crates/batuta-routing/tests/state_store.rs",
+              "selector": "commit_publica_un_manifest_tras_objetos_inmutables"
+            }
+          ]
+        },
+        {
+          "id": "REQ-STATE-002",
+          "statement": "Todos los escritores y migraciones V1 deben compartir CAS y recuperación.",
+          "status": "partial",
+          "verifications": [
+            {
+              "kind": "test",
+              "path": "crates/batuta-routing/tests/policy_migration.rs",
+              "selector": "dry_run_no_escribe_y_apply_conserva_v1_recuperable"
+            },
+            {
+              "kind": "manual_protocol",
+              "path": "specs/system/state-policy-routing.md",
+              "selector": null
+            }
+          ]
+        }
+      ],
+      "evidence": [
+        "docs/evidence/tdd.jsonl"
+      ],
+      "roadmap_id": "RM-004",
+      "protocol": "specs/system/state-policy-routing.md"
+    },
+    {
+      "id": "CAP-SURFACES",
+      "title": "CLI, JSON, MCP y TUI",
+      "owner_spec": "specs/system/surfaces.md",
+      "code_paths": [
+        "crates/batuta-cli/src/api.rs",
+        "crates/batuta-cli/src/mcp.rs",
+        "crates/batuta-cli/src/panel.rs",
+        "crates/batuta-cli/src/tui.rs"
+      ],
+      "status": "partial",
+      "requirements": [
+        {
+          "id": "REQ-SURFACES-001",
+          "statement": "Las superficies de consulta comparten decisiones y errores normalizados.",
+          "status": "implemented",
+          "verifications": [
+            {
+              "kind": "test",
+              "path": "crates/batuta-cli/tests/routing_surfaces.rs",
+              "selector": "cli_json_y_mcp_devuelven_exactamente_la_misma_decision"
+            }
+          ]
+        },
+        {
+          "id": "REQ-SURFACES-002",
+          "statement": "Catálogo, perfiles, cestas, fallbacks, overrides y propuestas necesitan CRUD común.",
+          "status": "partial",
+          "verifications": [
+            {
+              "kind": "test",
+              "path": "crates/batuta-cli/tests/declaracion.rs",
+              "selector": "nuevo_proveedor_escribe_el_fichero_y_carga_con_load_dir"
+            },
+            {
+              "kind": "manual_protocol",
+              "path": "specs/system/surfaces.md",
+              "selector": null
+            }
+          ]
+        }
+      ],
+      "evidence": [
+        "docs/evidence/tdd.jsonl"
+      ],
+      "roadmap_id": "RM-006",
+      "protocol": "specs/system/surfaces.md"
+    }
+  ]
+}

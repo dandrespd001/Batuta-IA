@@ -1,0 +1,7 @@
+{
+  "operations": [
+    {"operation": "set", "pointer": "/living_specs_updated", "value": false}
+  ],
+  "diagnostic": "IMPACT_LIVING_SPEC_REQUIRED",
+  "exit_code": 1
+}

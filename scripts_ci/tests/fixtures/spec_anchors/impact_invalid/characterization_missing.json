@@ -1,0 +1,9 @@
+{
+  "operations": [
+    {"operation": "set", "pointer": "/change_type", "value": "internal_refactor"},
+    {"operation": "set", "pointer": "/living_specs_updated", "value": false},
+    {"operation": "set", "pointer": "/characterization", "value": ["tests/missing.rs"]}
+  ],
+  "diagnostic": "IMPACT_CHARACTERIZATION_REQUIRED",
+  "exit_code": 1
+}

@@ -1,5 +1,10 @@
 # SPEC v2 — Orquestación, salud y relevo
 
+> **Archivo histórico desde 2026-08-31.** La autoridad vigente es
+> [`specs/system/execution.md`](../specs/system/execution.md), con estado generacional en
+> [`specs/system/state-policy-routing.md`](../specs/system/state-policy-routing.md). La paridad está en
+> [`DOCUMENT_CLASSIFICATION.md`](DOCUMENT_CLASSIFICATION.md); el contenido siguiente queda íntegro.
+
 **Estado: aprobado para implementación.** Este documento reemplaza el contrato de Fase 3;
 los recibos de canario existentes conservan compatibilidad de lectura.
 

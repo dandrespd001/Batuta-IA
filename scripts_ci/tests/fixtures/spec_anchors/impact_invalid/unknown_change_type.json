@@ -1,0 +1,7 @@
+{
+  "operations": [
+    {"operation": "set", "pointer": "/change_type", "value": "mixed"}
+  ],
+  "diagnostic": "SCHEMA_UNKNOWN_ENUM",
+  "exit_code": 1
+}

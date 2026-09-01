@@ -1,0 +1,7 @@
+{
+  "operations": [
+    {"operation": "duplicate", "pointer": "/requirements/0"}
+  ],
+  "diagnostic": "SCHEMA_VALUE_INVALID",
+  "exit_code": 1
+}

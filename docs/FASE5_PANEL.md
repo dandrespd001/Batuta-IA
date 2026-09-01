@@ -1,5 +1,10 @@
 # SPEC v2 — Superficies CLI, TUI y MCP
 
+> **Archivo histórico desde 2026-08-31.** La autoridad vigente es
+> [`specs/system/surfaces.md`](../specs/system/surfaces.md). La matriz completa de requisitos y
+> verificaciones está en [`DOCUMENT_CLASSIFICATION.md`](DOCUMENT_CLASSIFICATION.md); el contenido
+> siguiente se conserva íntegro.
+
 **Estado: aprobado para implementación.** Este documento reemplaza la propuesta de Fase 5.
 
 ## 1. Una sola aplicación, tres superficies

@@ -1,0 +1,7 @@
+{
+  "operations": [
+    {"operation": "set", "pointer": "/feature_id", "value": "example"}
+  ],
+  "diagnostic": "SCHEMA_VALUE_INVALID",
+  "exit_code": 1
+}

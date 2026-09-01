@@ -1,5 +1,11 @@
 # Contratos operativos del núcleo crítico v2
 
+> **Archivo histórico desde 2026-08-31.** Las autoridades vigentes son
+> [`specs/system/execution.md`](../specs/system/execution.md) y
+> [`specs/system/state-policy-routing.md`](../specs/system/state-policy-routing.md). La paridad por
+> sección está demostrada en [`DOCUMENT_CLASSIFICATION.md`](DOCUMENT_CLASSIFICATION.md); el contenido
+> histórico siguiente permanece íntegro e inmutable.
+
 ## ExecutionProfileV1
 
 El perfil operativo es un JSON cerrado y sellado. Contiene exclusivamente

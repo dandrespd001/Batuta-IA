@@ -1,5 +1,11 @@
 # SPEC v2 — Política, evidencia investigada y routing
 
+> **Archivo histórico desde 2026-08-31.** Las autoridades vigentes son
+> [`specs/system/quality-research.md`](../specs/system/quality-research.md) y
+> [`specs/system/state-policy-routing.md`](../specs/system/state-policy-routing.md). La paridad completa
+> se registra en [`DOCUMENT_CLASSIFICATION.md`](DOCUMENT_CLASSIFICATION.md); el contenido siguiente se
+> conserva íntegro.
+
 **Estado: aprobado para implementación.** Este documento reemplaza la propuesta de Fase 4.
 
 ## 1. Vocabulario y límites

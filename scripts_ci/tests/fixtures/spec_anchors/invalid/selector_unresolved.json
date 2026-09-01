@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "operations": [
+    {
+      "operation": "set",
+      "pointer": "/capabilities/0/requirements/0/verifications/0/selector",
+      "value": "selector_que_no_existe"
+    }
+  ],
+  "diagnostic": "ANCHOR_SELECTOR_UNRESOLVED",
+  "exit_code": 1
+}

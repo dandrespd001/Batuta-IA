@@ -1,0 +1,7 @@
+{
+  "operations": [
+    {"operation": "set", "pointer": "/migration/required", "value": true}
+  ],
+  "diagnostic": "SCHEMA_CONDITIONAL_INVALID",
+  "exit_code": 1
+}

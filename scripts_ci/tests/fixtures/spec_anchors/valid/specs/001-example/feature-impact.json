@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "feature_id": "001-example",
+  "change_type": "contract",
+  "capabilities": [
+    "CAP-CONTRACTS"
+  ],
+  "requirements": [
+    "REQ-CONTRACTS-001"
+  ],
+  "compatibility": {
+    "public_contract": "compatible",
+    "persisted_data": "not_applicable",
+    "notes": "El fixture conserva los contratos observables."
+  },
+  "migration": {
+    "required": false,
+    "plan": null,
+    "backup": null,
+    "retry": null
+  },
+  "rollback": {
+    "strategy": "revert",
+    "procedure": "Revertir el cambio del fixture.",
+    "success_check": "Confirmar que el contrato vuelve al valor base."
+  },
+  "living_specs_updated": true,
+  "characterization": []
+}

@@ -1,5 +1,10 @@
 # Trazabilidad de cierre de routing v2
 
+> **Evidencia histórica, no autoridad de conducta.** La navegación vigente comienza en
+> [`specs/anchors.json`](../specs/anchors.json) y la evidencia sellada permanece en
+> [`docs/evidence/`](evidence/). Este documento demuestra el cierre que registró y no sustituye las
+> specs vivas.
+
 Fecha de auditoría: 2026-08-31. `OK` significa cubierto por código y test local;
 `EXTERNO` requiere autorización, límites y acceso a un harness real; `PENDIENTE`
 no debe interpretarse como terminado.

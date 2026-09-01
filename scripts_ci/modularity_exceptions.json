@@ -1,0 +1,55 @@
+{
+  "schema_version": 1,
+  "exceptions": [
+    {
+      "path": "crates/batuta-contract/src/ids.rs",
+      "kind": "production",
+      "justification": "Deuda heredada sellada en K4; RM-002 separará familias de IDs sin cambiar su contrato público.",
+      "extraction": "Extraer parseo, validación y serde de cada familia de identificadores a módulos cohesivos.",
+      "characterization_tests": [
+        "crates/batuta-contract/tests/identificadores.rs",
+        "crates/batuta-contract/tests/orden_y_serde.rs"
+      ]
+    },
+    {
+      "path": "crates/batuta-manifest/src/manifest.rs",
+      "kind": "production",
+      "justification": "Deuda heredada sellada en K4; RM-002 dividirá carga, validación y forma pública del manifest.",
+      "extraction": "Extraer carga, validación, modelos y hashing del manifest en módulos con una sola responsabilidad.",
+      "characterization_tests": [
+        "crates/batuta-manifest/tests/carga.rs",
+        "crates/batuta-manifest/tests/sha256_bordes.rs",
+        "crates/batuta-manifest/tests/superficie.rs"
+      ]
+    },
+    {
+      "path": "crates/batuta-quality/src/model.rs",
+      "kind": "production",
+      "justification": "Deuda heredada sellada en K4; RM-003 separará el modelo de calidad de sus reglas y proyecciones.",
+      "extraction": "Extraer perfiles, revisiones, overrides y validaciones de calidad en módulos cerrados.",
+      "characterization_tests": [
+        "crates/batuta-quality/tests/calidad.rs",
+        "crates/batuta-quality/tests/initial_profiles.rs"
+      ]
+    },
+    {
+      "path": "crates/batuta-routing/src/operational.rs",
+      "kind": "production",
+      "justification": "Deuda heredada sellada en K4; RM-003 dividirá contratos operativos de construcción y validación.",
+      "extraction": "Extraer requests, observaciones, canarios y research operativo a módulos por contrato.",
+      "characterization_tests": [
+        "crates/batuta-routing/tests/operational_v2.rs"
+      ]
+    },
+    {
+      "path": "crates/batuta-routing/src/selector.rs",
+      "kind": "production",
+      "justification": "Deuda heredada sellada en K4; RM-003 aislará elegibilidad, scoring y sellado de selección.",
+      "extraction": "Extraer filtros de elegibilidad, comparación de candidatos y construcción de decisiones selladas.",
+      "characterization_tests": [
+        "crates/batuta-routing/tests/sealed_decision.rs",
+        "crates/batuta-routing/tests/selector.rs"
+      ]
+    }
+  ]
+}

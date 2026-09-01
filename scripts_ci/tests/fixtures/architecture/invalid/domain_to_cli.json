@@ -1,0 +1,7 @@
+{
+  "dependencies": [
+    ["batuta-domain", "batuta-cli"]
+  ],
+  "diagnostic": "ARCHITECTURE_DOMAIN_TO_CLI",
+  "exit_code": 1
+}

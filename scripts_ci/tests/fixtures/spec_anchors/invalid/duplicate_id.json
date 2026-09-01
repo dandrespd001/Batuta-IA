@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "operations": [
+    {
+      "operation": "duplicate",
+      "pointer": "/capabilities/0"
+    }
+  ],
+  "diagnostic": "ANCHOR_DUPLICATE_ID",
+  "exit_code": 1
+}

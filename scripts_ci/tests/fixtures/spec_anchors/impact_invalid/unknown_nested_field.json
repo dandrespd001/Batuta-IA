@@ -1,0 +1,7 @@
+{
+  "operations": [
+    {"operation": "add", "pointer": "/migration/unexpected", "value": true}
+  ],
+  "diagnostic": "SCHEMA_UNKNOWN_FIELD",
+  "exit_code": 1
+}

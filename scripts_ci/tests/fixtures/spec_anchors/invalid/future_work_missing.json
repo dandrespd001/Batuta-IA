@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "operations": [
+    {
+      "operation": "set",
+      "pointer": "/capabilities/1/roadmap_id",
+      "value": null
+    },
+    {
+      "operation": "set",
+      "pointer": "/capabilities/1/protocol",
+      "value": null
+    }
+  ],
+  "diagnostic": "ANCHOR_FUTURE_WORK_REQUIRED",
+  "exit_code": 1
+}

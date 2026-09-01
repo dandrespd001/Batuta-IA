@@ -1,0 +1,3 @@
+[workspace]
+resolver = "3"
+members = ["crates/batuta-contract", "crates/batuta-domain", "crates/batuta-cli"]

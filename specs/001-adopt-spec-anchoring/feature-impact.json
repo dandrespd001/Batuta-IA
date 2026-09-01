@@ -1,0 +1,62 @@
+{
+  "schema_version": 1,
+  "feature_id": "001-adopt-spec-anchoring",
+  "change_type": "contract",
+  "capabilities": [
+    "CAP-CONTRACTS",
+    "CAP-EXECUTION",
+    "CAP-LEGACY",
+    "CAP-MANIFESTS",
+    "CAP-POLICY",
+    "CAP-QUALITY",
+    "CAP-RESEARCH",
+    "CAP-ROLLOUT",
+    "CAP-ROUTING",
+    "CAP-STATE",
+    "CAP-SURFACES"
+  ],
+  "requirements": [
+    "REQ-CONTRACTS-001",
+    "REQ-CONTRACTS-002",
+    "REQ-EXECUTION-001",
+    "REQ-EXECUTION-002",
+    "REQ-EXECUTION-003",
+    "REQ-LEGACY-001",
+    "REQ-MANIFESTS-001",
+    "REQ-MANIFESTS-002",
+    "REQ-POLICY-001",
+    "REQ-POLICY-002",
+    "REQ-QUALITY-001",
+    "REQ-QUALITY-002",
+    "REQ-RESEARCH-001",
+    "REQ-RESEARCH-002",
+    "REQ-ROLLOUT-001",
+    "REQ-ROLLOUT-002",
+    "REQ-ROLLOUT-003",
+    "REQ-ROLLOUT-004",
+    "REQ-ROUTING-001",
+    "REQ-ROUTING-002",
+    "REQ-STATE-001",
+    "REQ-STATE-002",
+    "REQ-SURFACES-001",
+    "REQ-SURFACES-002"
+  ],
+  "compatibility": {
+    "public_contract": "compatible",
+    "persisted_data": "not_applicable",
+    "notes": "La adopción añade autoridad y validación documental sin cambiar contratos públicos ni transformar datos persistidos existentes."
+  },
+  "migration": {
+    "required": false,
+    "plan": null,
+    "backup": null,
+    "retry": null
+  },
+  "rollback": {
+    "strategy": "revert",
+    "procedure": "Revertir en conjunto los artefactos de gobernanza creados por el paquete 001; los seis artefactos V1 permanecen intactos.",
+    "success_check": "Confirmar que los hashes V1 siguen verdes y que no quedan referencias activas a la autoridad del paquete 001."
+  },
+  "living_specs_updated": true,
+  "characterization": []
+}

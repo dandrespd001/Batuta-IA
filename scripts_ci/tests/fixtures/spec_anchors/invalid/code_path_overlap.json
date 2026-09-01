@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "operations": [
+    {
+      "operation": "set",
+      "pointer": "/capabilities/0/code_paths",
+      "value": ["crates/example/src", "crates/example/src/lib.rs"]
+    }
+  ],
+  "diagnostic": "ANCHOR_CODE_PATH_OVERLAP",
+  "exit_code": 1
+}

@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "operations": [
+    {
+      "operation": "set",
+      "pointer": "/capabilities/0/requirements/0/verifications/0/path",
+      "value": "tests/missing.rs"
+    }
+  ],
+  "diagnostic": "ANCHOR_PATH_MISSING",
+  "exit_code": 1
+}

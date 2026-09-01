@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "operations": [
+    {
+      "operation": "set",
+      "pointer": "/capabilities/0/requirements/0/id",
+      "value": "REQ-CONTRACTS-002"
+    }
+  ],
+  "diagnostic": "ANCHOR_COVERAGE_MISMATCH",
+  "exit_code": 1
+}

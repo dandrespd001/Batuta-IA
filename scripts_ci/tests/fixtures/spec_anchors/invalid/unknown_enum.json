@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "operations": [
+    {
+      "operation": "set",
+      "pointer": "/capabilities/0/requirements/0/status",
+      "value": "finished"
+    }
+  ],
+  "diagnostic": "SCHEMA_UNKNOWN_ENUM",
+  "exit_code": 1
+}

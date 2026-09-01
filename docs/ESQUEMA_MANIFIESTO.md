@@ -1,5 +1,10 @@
 # Esquema del manifiesto de proveedor — Fase 2
 
+> **Archivo histórico desde 2026-08-31.** La autoridad vigente es
+> [`specs/system/manifests.md`](../specs/system/manifests.md). La paridad completa por sección y sus
+> verificaciones están en [`DOCUMENT_CLASSIFICATION.md`](DOCUMENT_CLASSIFICATION.md). El contenido
+> histórico que sigue se conserva íntegro y ya no debe editarse como contrato vigente.
+
 **Estado: propuesta, pendiente de aprobación del Arquitecto.** Nada de
 `batuta-manifest` se escribe antes.
 

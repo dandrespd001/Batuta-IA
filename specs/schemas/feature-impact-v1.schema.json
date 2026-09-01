@@ -1,0 +1,421 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://batuta.local/schemas/feature-impact-v1.schema.json",
+  "title": "FeatureImpactV1",
+  "description": "Declaración cerrada de impacto que vive dentro de cada paquete de cambio specs/NNN-*. Forma normativa de REQ-SDD-006. Las reglas que dependen de otros ficheros -existencia de IDs en specs/anchors.json, pertenencia de cada requisito a las capacidades declaradas, orden ascendente de los arrays, coincidencia de feature_id con el nombre real del directorio, existencia de las rutas de characterization y prohibición de tocar crates/ bajo docs_only- no son expresables en JSON Schema y las comprueba scripts_ci/validate_spec_anchors.py (T021).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "feature_id",
+    "change_type",
+    "capabilities",
+    "requirements",
+    "compatibility",
+    "migration",
+    "rollback",
+    "living_specs_updated",
+    "characterization"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "feature_id": {
+      "description": "Coincide exactamente con el nombre del directorio NNN-* que contiene este fichero.",
+      "type": "string",
+      "pattern": "^[0-9]{3}-[a-z0-9]+(-[a-z0-9]+)*$"
+    },
+    "change_type": {
+      "description": "Clases excluyentes por precedencia: contract > behavior > internal_refactor > docs_only.",
+      "enum": [
+        "contract",
+        "behavior",
+        "internal_refactor",
+        "docs_only"
+      ]
+    },
+    "capabilities": {
+      "description": "IDs de capacidad existentes, únicos y ordenados ascendentemente.",
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/capabilityId"
+      }
+    },
+    "requirements": {
+      "description": "IDs de requisito existentes, únicos, ordenados y pertenecientes a las capacidades declaradas.",
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/requirementId"
+      }
+    },
+    "compatibility": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "public_contract",
+        "persisted_data",
+        "notes"
+      ],
+      "properties": {
+        "public_contract": {
+          "$ref": "#/$defs/compatibilityVerdict"
+        },
+        "persisted_data": {
+          "$ref": "#/$defs/compatibilityVerdict"
+        },
+        "notes": {
+          "description": "Texto no vacío que justifica ambos veredictos.",
+          "$ref": "#/$defs/nonEmptyString"
+        }
+      }
+    },
+    "migration": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "required",
+        "plan",
+        "backup",
+        "retry"
+      ],
+      "properties": {
+        "required": {
+          "type": "boolean"
+        },
+        "plan": {
+          "description": "Pasos verificables de migración.",
+          "$ref": "#/$defs/nullableNonEmptyString"
+        },
+        "backup": {
+          "description": "Restauración demostrable del estado previo.",
+          "$ref": "#/$defs/nullableNonEmptyString"
+        },
+        "retry": {
+          "description": "Reintento idempotente con la misma entrada.",
+          "$ref": "#/$defs/nullableNonEmptyString"
+        }
+      },
+      "allOf": [
+        {
+          "$comment": "required: true obliga a las tres cadenas no vacías.",
+          "if": {
+            "properties": {
+              "required": {
+                "const": true
+              }
+            },
+            "required": [
+              "required"
+            ]
+          },
+          "then": {
+            "properties": {
+              "plan": {
+                "$ref": "#/$defs/nonEmptyString"
+              },
+              "backup": {
+                "$ref": "#/$defs/nonEmptyString"
+              },
+              "retry": {
+                "$ref": "#/$defs/nonEmptyString"
+              }
+            }
+          }
+        },
+        {
+          "$comment": "required: false obliga a las tres nulas.",
+          "if": {
+            "properties": {
+              "required": {
+                "const": false
+              }
+            },
+            "required": [
+              "required"
+            ]
+          },
+          "then": {
+            "properties": {
+              "plan": {
+                "type": "null"
+              },
+              "backup": {
+                "type": "null"
+              },
+              "retry": {
+                "type": "null"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "rollback": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "strategy",
+        "procedure",
+        "success_check"
+      ],
+      "properties": {
+        "strategy": {
+          "enum": [
+            "revert",
+            "restore_backup",
+            "forward_fix",
+            "not_applicable"
+          ]
+        },
+        "procedure": {
+          "$ref": "#/$defs/nullableNonEmptyString"
+        },
+        "success_check": {
+          "$ref": "#/$defs/nullableNonEmptyString"
+        }
+      },
+      "allOf": [
+        {
+          "$comment": "revert, restore_backup y forward_fix exigen procedimiento y comprobación no vacíos.",
+          "if": {
+            "properties": {
+              "strategy": {
+                "enum": [
+                  "revert",
+                  "restore_backup",
+                  "forward_fix"
+                ]
+              }
+            },
+            "required": [
+              "strategy"
+            ]
+          },
+          "then": {
+            "properties": {
+              "procedure": {
+                "$ref": "#/$defs/nonEmptyString"
+              },
+              "success_check": {
+                "$ref": "#/$defs/nonEmptyString"
+              }
+            }
+          }
+        },
+        {
+          "$comment": "not_applicable exige ambos nulos.",
+          "if": {
+            "properties": {
+              "strategy": {
+                "const": "not_applicable"
+              }
+            },
+            "required": [
+              "strategy"
+            ]
+          },
+          "then": {
+            "properties": {
+              "procedure": {
+                "type": "null"
+              },
+              "success_check": {
+                "type": "null"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "living_specs_updated": {
+      "type": "boolean"
+    },
+    "characterization": {
+      "description": "Rutas relativas existentes, únicas y ordenadas, que demuestran igualdad observable.",
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/relativePath"
+      }
+    }
+  },
+  "allOf": [
+    {
+      "$comment": "contract y behavior exigen actualizar las specs vivas.",
+      "if": {
+        "properties": {
+          "change_type": {
+            "enum": [
+              "contract",
+              "behavior"
+            ]
+          }
+        },
+        "required": [
+          "change_type"
+        ]
+      },
+      "then": {
+        "properties": {
+          "living_specs_updated": {
+            "const": true
+          }
+        }
+      }
+    },
+    {
+      "$comment": "internal_refactor y docs_only prohíben declarar cambio conductual de spec viva.",
+      "if": {
+        "properties": {
+          "change_type": {
+            "enum": [
+              "internal_refactor",
+              "docs_only"
+            ]
+          }
+        },
+        "required": [
+          "change_type"
+        ]
+      },
+      "then": {
+        "properties": {
+          "living_specs_updated": {
+            "const": false
+          }
+        }
+      }
+    },
+    {
+      "$comment": "internal_refactor exige caracterización no vacía.",
+      "if": {
+        "properties": {
+          "change_type": {
+            "const": "internal_refactor"
+          }
+        },
+        "required": [
+          "change_type"
+        ]
+      },
+      "then": {
+        "properties": {
+          "characterization": {
+            "minItems": 1
+          }
+        }
+      }
+    },
+    {
+      "$comment": "Una incompatibilidad en cualquiera de las dos dimensiones obliga a migración.",
+      "if": {
+        "properties": {
+          "compatibility": {
+            "anyOf": [
+              {
+                "properties": {
+                  "public_contract": {
+                    "const": "incompatible"
+                  }
+                },
+                "required": [
+                  "public_contract"
+                ]
+              },
+              {
+                "properties": {
+                  "persisted_data": {
+                    "const": "incompatible"
+                  }
+                },
+                "required": [
+                  "persisted_data"
+                ]
+              }
+            ]
+          }
+        },
+        "required": [
+          "compatibility"
+        ]
+      },
+      "then": {
+        "properties": {
+          "migration": {
+            "properties": {
+              "required": {
+                "const": true
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "$comment": "Sólo docs_only admite rollback not_applicable.",
+      "if": {
+        "properties": {
+          "rollback": {
+            "properties": {
+              "strategy": {
+                "const": "not_applicable"
+              }
+            },
+            "required": [
+              "strategy"
+            ]
+          }
+        },
+        "required": [
+          "rollback"
+        ]
+      },
+      "then": {
+        "properties": {
+          "change_type": {
+            "const": "docs_only"
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "nonEmptyString": {
+      "type": "string",
+      "minLength": 1
+    },
+    "nullableNonEmptyString": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "relativePath": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[^/].*$"
+    },
+    "capabilityId": {
+      "type": "string",
+      "pattern": "^CAP-[A-Z][A-Z0-9-]*$"
+    },
+    "requirementId": {
+      "type": "string",
+      "pattern": "^REQ-[A-Z][A-Z0-9-]*-[0-9]{3}$"
+    },
+    "compatibilityVerdict": {
+      "enum": [
+        "compatible",
+        "incompatible",
+        "not_applicable"
+      ]
+    }
+  }
+}

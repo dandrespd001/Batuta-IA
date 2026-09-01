@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "operations": [
+    {
+      "operation": "set",
+      "pointer": "/capabilities/0/requirements/0/verifications/0/kind",
+      "value": "manual_protocol"
+    },
+    {
+      "operation": "set",
+      "pointer": "/capabilities/0/requirements/0/verifications/0/selector",
+      "value": null
+    }
+  ],
+  "diagnostic": "ANCHOR_EXECUTABLE_REQUIRED",
+  "exit_code": 1
+}

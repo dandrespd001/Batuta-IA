@@ -34,9 +34,21 @@ comprobar_no_std() {
     grep -qx '#!\[no_std\]' crates/batuta-contract/src/lib.rs
 }
 
+validar_anchors() {
+    local argumentos=()
+    if [[ -n "${BATUTA_SPEC_BASE:-}" ]]; then
+        argumentos=(--base "$BATUTA_SPEC_BASE")
+    fi
+    python3 scripts_ci/validate_spec_anchors.py "${argumentos[@]}"
+}
+
 ejecutar "formato"            cargo fmt --all --check
 ejecutar "cero E/S (no_std)"  comprobar_no_std
-ejecutar "evidencia TDD"       python3 scripts_ci/validate_tdd_evidence.py
+ejecutar "specs, anchors e impacto" validar_anchors
+ejecutar "evidencia TDD"      python3 scripts_ci/validate_tdd_evidence.py
+ejecutar "modularidad"        python3 scripts_ci/check_modularity.py
+ejecutar "arquitectura"       python3 scripts_ci/check_architecture.py
+ejecutar "pruebas de gates"   python3 -m unittest discover -s scripts_ci/tests -v
 ejecutar "sidecar DSH offline" node sidecar/test_dsh_catalog.mjs
 ejecutar "clippy"             "${NICE[@]}" cargo clippy --workspace --all-targets --all-features --jobs "$JOBS" -- -D warnings
 ejecutar "tests"              "${NICE[@]}" cargo test --workspace --all-features --jobs "$JOBS"

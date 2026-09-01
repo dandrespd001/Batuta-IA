@@ -1,0 +1,7 @@
+{
+  "dependencies": [
+    ["batuta-domain", "batuta-cli"]
+  ],
+  "diagnostic": "ARCHITECTURE_CYCLE",
+  "exit_code": 1
+}

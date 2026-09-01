@@ -1,0 +1,7 @@
+{
+  "dependencies": [
+    ["batuta-contract", "batuta-domain"]
+  ],
+  "diagnostic": "ARCHITECTURE_CONTRACT_DEPENDENCY",
+  "exit_code": 1
+}

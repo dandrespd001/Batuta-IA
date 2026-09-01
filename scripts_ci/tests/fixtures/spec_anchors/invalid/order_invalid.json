@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "operations": [
+    {
+      "operation": "reverse",
+      "pointer": "/capabilities"
+    }
+  ],
+  "diagnostic": "ANCHOR_ORDER_INVALID",
+  "exit_code": 1
+}

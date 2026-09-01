@@ -1,0 +1,7 @@
+{
+  "operations": [
+    {"operation": "set", "pointer": "/capabilities/0", "value": "CAP-bad"}
+  ],
+  "diagnostic": "SCHEMA_VALUE_INVALID",
+  "exit_code": 1
+}

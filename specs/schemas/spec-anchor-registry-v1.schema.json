@@ -1,0 +1,354 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://batuta.local/schemas/spec-anchor-registry-v1.schema.json",
+  "title": "SpecAnchorRegistryV1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "baseline_commit",
+    "generated_from",
+    "capabilities"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "baseline_commit": {
+      "const": "7de68af2c9a36ba3dcc65971e4bba83231fb3855"
+    },
+    "generated_from": {
+      "const": "specs/system/product.md"
+    },
+    "capabilities": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/capability"
+      }
+    }
+  },
+  "$defs": {
+    "relativePath": {
+      "type": "string",
+      "minLength": 1
+    },
+    "nullableRelativePath": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/relativePath"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "verification": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "path",
+        "selector"
+      ],
+      "properties": {
+        "kind": {
+          "enum": [
+            "test",
+            "gate",
+            "manual_protocol"
+          ]
+        },
+        "path": {
+          "$ref": "#/$defs/relativePath"
+        },
+        "selector": {
+          "oneOf": [
+            {
+              "type": "string",
+              "minLength": 1
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "manual_protocol"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "properties": {
+              "selector": {
+                "type": "null"
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "selector": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        }
+      ]
+    },
+    "requirement": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "statement",
+        "status",
+        "verifications"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^REQ-[A-Z][A-Z0-9-]*-[0-9]{3}$"
+        },
+        "statement": {
+          "type": "string",
+          "minLength": 1
+        },
+        "status": {
+          "enum": [
+            "implemented",
+            "partial",
+            "external",
+            "deprecated"
+          ]
+        },
+        "verifications": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/verification"
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "implemented"
+              }
+            },
+            "required": [
+              "status"
+            ]
+          },
+          "then": {
+            "properties": {
+              "verifications": {
+                "contains": {
+                  "properties": {
+                    "kind": {
+                      "enum": [
+                        "test",
+                        "gate"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "kind"
+                  ]
+                },
+                "minContains": 1
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "enum": [
+                  "partial",
+                  "external"
+                ]
+              }
+            },
+            "required": [
+              "status"
+            ]
+          },
+          "then": {
+            "properties": {
+              "verifications": {
+                "contains": {
+                  "properties": {
+                    "kind": {
+                      "const": "manual_protocol"
+                    }
+                  },
+                  "required": [
+                    "kind"
+                  ]
+                },
+                "minContains": 1
+              }
+            }
+          }
+        }
+      ]
+    },
+    "capability": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "title",
+        "owner_spec",
+        "code_paths",
+        "status",
+        "requirements",
+        "evidence",
+        "roadmap_id",
+        "protocol"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^CAP-[A-Z][A-Z0-9-]*$"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1
+        },
+        "owner_spec": {
+          "type": "string",
+          "pattern": "^specs/system/[^/]+\\.md$"
+        },
+        "code_paths": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/relativePath"
+          }
+        },
+        "status": {
+          "enum": [
+            "implemented",
+            "partial",
+            "external",
+            "deprecated"
+          ]
+        },
+        "requirements": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/requirement"
+          }
+        },
+        "evidence": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/relativePath"
+          }
+        },
+        "roadmap_id": {
+          "oneOf": [
+            {
+              "type": "string",
+              "pattern": "^RM-[0-9]{3}$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "protocol": {
+          "$ref": "#/$defs/nullableRelativePath"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "enum": [
+                  "partial",
+                  "external"
+                ]
+              }
+            },
+            "required": [
+              "status"
+            ]
+          },
+          "then": {
+            "properties": {
+              "roadmap_id": {
+                "type": "string",
+                "pattern": "^RM-[0-9]{3}$"
+              },
+              "protocol": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "deprecated"
+              }
+            },
+            "required": [
+              "status"
+            ]
+          },
+          "then": {
+            "properties": {
+              "roadmap_id": {
+                "type": "string",
+                "pattern": "^RM-[0-9]{3}$"
+              },
+              "protocol": {
+                "type": "null"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "implemented"
+              }
+            },
+            "required": [
+              "status"
+            ]
+          },
+          "then": {
+            "properties": {
+              "protocol": {
+                "type": "null"
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

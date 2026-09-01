@@ -1,0 +1,9 @@
+{
+  "operations": [
+    {"operation": "set", "pointer": "/rollback/strategy", "value": "not_applicable"},
+    {"operation": "set", "pointer": "/rollback/procedure", "value": null},
+    {"operation": "set", "pointer": "/rollback/success_check", "value": null}
+  ],
+  "diagnostic": "SCHEMA_CONDITIONAL_INVALID",
+  "exit_code": 1
+}

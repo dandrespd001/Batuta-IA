@@ -1,5 +1,11 @@
 # Esquema contractual — Calidad, research y routing v2
 
+> **Archivo histórico desde 2026-08-31.** Las autoridades vigentes son
+> [`specs/system/quality-research.md`](../specs/system/quality-research.md) y
+> [`specs/system/state-policy-routing.md`](../specs/system/state-policy-routing.md). La matriz completa
+> vive en [`DOCUMENT_CLASSIFICATION.md`](DOCUMENT_CLASSIFICATION.md); lo que sigue se conserva íntegro
+> como contexto histórico.
+
 Este documento es la referencia serializable de los SPEC v2.
 
 ## Identificadores

@@ -1,5 +1,9 @@
 # Estado de implementación: calidad y routing v2
 
+> **Guía de orientación, no autoridad de conducta.** El estado futuro se navega desde
+> [`ROADMAP.md`](../ROADMAP.md) y el contrato vigente desde [`specs/system/`](../specs/system/). Esta
+> guía conserva contexto de implementación y no sustituye ninguna spec viva.
+
 Fecha de verificación: 2026-08-31.
 
 Este documento separa código verificable de mediciones que necesitan ejecutar
