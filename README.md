@@ -10,11 +10,18 @@ proveedor estaba **declarado en un registro y ausente del otro**, así que toda 
 enrutada allí moría *después* de pagar la corrida. De ahí sale la regla que ordena todo lo
 demás: **nada se declara, se demuestra.**
 
-- `docs/ESQUEMA_MANIFIESTO.md` — el esquema de manifiestos y por qué cada campo existe.
-- `docs/REGLAS_INGENIERIA_RUST.md` — reglas generales de modularidad y mantenibilidad.
-- `docs/DEUDA_MODULAR_RUST.md` — inventario gradual de módulos que requieren una división segura.
-- `docs/medidas/DSH_HEADLESS.md` — las mediciones sobre las que se apoya el diseño.
-- `docs/medidas/DELEGACION_MANIFEST.md` — la primera delegación real, medida y verificada.
+## Navegación vigente
+
+- [`specs/README.md`](specs/README.md) — autoridad viva, IDs y recorrido desde capacidad a requisito.
+- [`specs/anchors.json`](specs/anchors.json) — inventario navegable de capacidades y verificaciones.
+- [`ROADMAP.md`](ROADMAP.md) — siguientes slices, dependencias y autorización externa.
+- [`CONTRIBUTING.md`](CONTRIBUTING.md) — flujo humano, impacto, recuperación y gates.
+- [`AGENTS.md`](AGENTS.md) — instrucciones breves para agentes de implementación.
+- [`docs/DOCUMENT_CLASSIFICATION.md`](docs/DOCUMENT_CLASSIFICATION.md) — clase, autoridad y
+  mutabilidad de cada documento.
+
+La precedencia es constitución, spec viva propietaria, schema vivo y después guías o historia. Los
+documentos históricos de `docs/` conservan contexto y evidencia, pero no compiten con `specs/system/`.
 
 ## Estado
 
@@ -27,6 +34,17 @@ demás: **nada se declara, se demuestra.**
 | **4** | **Núcleo de política, calidad y routing** | **núcleo y cierre operativo K4 hechos; CLI general de política diferida** |
 | **5** | **CLI JSON, MCP stdio y TUI local** | **superficies K4 hechas; CRUD TUI ajeno al perfil diferido** |
 | 6 | Convivencia y corte | pendiente |
+
+La adopción spec-anchored `RM-001` sigue `in_progress`: el checkpoint actual completa 37 de 42
+tareas sin cambiar el estado del roadmap.
+
+| Historia | Resultado | Estado |
+|---|---|---|
+| US1 | Autoridad viva, anchors, roadmap y clasificación navegables | hecha |
+| US2 | Deriva, modularidad y arquitectura bloqueadas por el gate | hecha |
+| US3 | Siete rutas V1 y 19 registros preservados; evidencia V2 separada | hecha |
+| US4 | Autoría v1.0.2, guías y checker offline repetibles | hecha |
+| Cierre T038–T042 | recorridos, evidencia final, aceptación y convergencia | pendiente |
 
 El primer beneficio real llega en la Fase 3, no al final. Y llegó: `batuta canary` corre
 contra dos proveedores reales y deja recibo. Los plugins de la Fase 3 original se aplazan
@@ -87,6 +105,10 @@ docs/IMPLEMENTACION_ROUTING_V2.md estado verificable y límites operativos
 docs/medidas/DSH_HEADLESS.md     lo que se midió del transporte, con las corridas
 docs/medidas/DELEGACION_MANIFEST.md  la primera delegación real, verificada
 docs/medidas/CANARIOS.md         los canarios reales, con sus recibos sin editar
+specs/system/                    autoridad viva del comportamiento público
+specs/anchors.json               capacidades, requisitos y verificaciones
+AGENTS.md                        reglas de trabajo para agentes
+CONTRIBUTING.md                  flujo de contribución humano
 scripts_ci/local_gates.sh        los gates permanentes
 .github/workflows/ci.yml         los mismos gates en CI
 ```
@@ -115,19 +137,26 @@ enumera lo que valía es el fallo que R8 paga.
 ## Gates
 
 ```sh
-bash scripts_ci/local_gates.sh
+./scripts_ci/local_gates.sh
 ```
 
-Cuatro, y ninguno es opcional:
+Es la única entrada agregada local y de CI. Ejecuta, en este orden, los once gates reales:
 
-1. `cargo fmt --all --check`
-2. `batuta-contract` sigue siendo `no_std`
-3. evidencia TDD JSONL validada
-4. `cargo clippy --workspace --all-targets --all-features -- -D warnings`
-5. `cargo test --workspace --all-features`
+1. formato Rust;
+2. atributo `no_std` de `batuta-contract`;
+3. integridad offline de Spec Kit v1.0.2/codex y sus 22 ficheros administrados;
+4. specs, anchors, impacto y correlación Git cuando se proporciona `BATUTA_SPEC_BASE`;
+5. evidencia TDD V1/V2;
+6. modularidad;
+7. arquitectura de crates;
+8. pruebas Python de los gates;
+9. sidecar DSH offline;
+10. Clippy con todo el workspace, targets y features;
+11. tests Rust con todo el workspace y features.
 
-Prioridad baja y dos jobs por defecto, como manda `AGENTS.md` de CHUNSA001.
-`BATUTA_BUILD_JOBS` es un override consciente.
+Todos funcionan sin red, credenciales ni proveedores. CI hace checkout con historial completo y
+llama sólo a este script. La compilación usa prioridad baja y dos jobs por defecto, como fija
+[`AGENTS.md`](AGENTS.md); `BATUTA_BUILD_JOBS` es un override consciente.
 
 ### Por qué el gate de `no_std`
 

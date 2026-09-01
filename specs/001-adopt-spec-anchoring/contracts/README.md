@@ -81,15 +81,19 @@ Es el checker permanente offline. Lee `.specify/integration.json` y los manifest
 exige versión `1.0.2`, integración `codex`, rutas relativas válidas, presencia de cada fichero y
 SHA-256 exacto. No importa ni ejecuta Spec Kit, no consulta instalación global y no accede a red.
 
-La fuente oficial de `SC-008` es un informe obtenido separadamente con:
+La versión de la CLI y la fuente oficial del estado de `SC-008` se obtienen por separado con la copia
+fijada:
 
 ```text
+specify --version
 specify integration status --json
 ```
 
-Ese informe debe declarar `status: ok`, versión `1.0.2`, integración `codex` y cero rutas/ficheros
-ausentes, modificados o inválidos. Puede requerir la copia fijada ya cacheada y no forma parte de CI;
-su indisponibilidad no relaja ni omite el checker offline.
+El primer comando debe informar `1.0.2`. El JSON del segundo debe declarar `status: ok`, integración
+`codex`, dos manifests y cero rutas o ficheros ausentes, modificados, inválidos o sin comprobar. El
+JSON informa el estado de integración, no se usa para inferir la versión de la CLI. Ambos comandos
+pueden requerir la copia fijada ya cacheada y no forman parte de CI; su indisponibilidad no relaja ni
+omite el checker offline.
 
 ## Salidas
 

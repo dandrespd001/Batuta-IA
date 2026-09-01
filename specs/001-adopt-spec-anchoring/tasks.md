@@ -168,15 +168,15 @@ desde un checkout sin credenciales, y el estado oficial de integración reporta 
 
 ### Tests for User Story 4 ⚠️
 
-- [ ] T032 [P] [US4] Añadir mutaciones de versión, integración, manifest, ruta, ausencia y hash administrado con diagnósticos exactos en `scripts_ci/tests/test_check_speckit_integration.py` [REQ-SDD-001]
+- [x] T032 [P] [US4] Añadir mutaciones de versión, integración, manifest, ruta, ausencia y hash administrado con diagnósticos exactos en `scripts_ci/tests/test_check_speckit_integration.py` [REQ-SDD-001]
 
 ### Implementation for User Story 4
 
-- [ ] T033 [US4] Implementar verificación offline de versión `1.0.2`, manifests, rutas y hashes sin ejecutar Spec Kit en `scripts_ci/check_speckit_integration.py` [REQ-SDD-001]
-- [ ] T034 [P] [US4] Escribir instrucciones breves para agentes en `AGENTS.md` [REQ-SDD-013]
-- [ ] T035 [P] [US4] Escribir el flujo humano, condiciones de parada, plantilla de impacto/recuperación y autorización externa completa en `CONTRIBUTING.md` [REQ-SDD-013]
-- [ ] T036 [US4] Actualizar navegación, estado y gate único en `README.md` [REQ-SDD-013]
-- [ ] T037 [US4] Añadir el checker offline a `scripts_ci/local_gates.sh` y contrastar fuera de CI la fuente oficial `specify integration status --json` con v1.0.2 [REQ-SDD-001, REQ-SDD-010]
+- [x] T033 [US4] Implementar verificación offline de versión `1.0.2`, manifests, rutas y hashes sin ejecutar Spec Kit en `scripts_ci/check_speckit_integration.py` [REQ-SDD-001]
+- [x] T034 [P] [US4] Escribir instrucciones breves para agentes en `AGENTS.md` [REQ-SDD-013]
+- [x] T035 [P] [US4] Escribir el flujo humano, condiciones de parada, plantilla de impacto/recuperación y autorización externa completa en `CONTRIBUTING.md` [REQ-SDD-013]
+- [x] T036 [US4] Actualizar navegación, estado y gate único en `README.md` [REQ-SDD-013]
+- [x] T037 [US4] Añadir el checker offline a `scripts_ci/local_gates.sh` y contrastar fuera de CI la fuente oficial `specify integration status --json` con v1.0.2 [REQ-SDD-001, REQ-SDD-010]
 
 **Checkpoint**: US4 deja el proceso repetible sin dependencia global ni acceso de proveedores.
 

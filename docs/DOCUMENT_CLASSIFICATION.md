@@ -10,6 +10,8 @@ mutabilidad. `null` significa que no existe una supersesión aplicable. Las clas
 | path | class | successor_authority | parity_verified | parity_evidence | mutability |
 |---|---|---|---:|---|---|
 | `.specify/memory/constitution.md` | `normative` | `null` | `false` | `null` | `living` |
+| `AGENTS.md` | `guide` | `null` | `false` | `null` | `living` |
+| `CONTRIBUTING.md` | `guide` | `null` | `false` | `null` | `living` |
 | `README.md` | `guide` | `null` | `false` | `null` | `living` |
 | `ROADMAP.md` | `guide` | `null` | `false` | `null` | `living` |
 | `docs/CONTRATOS_OPERATIVOS_V2.md` | `archive` | `specs/system/execution.md` | `true` | `docs/DOCUMENT_CLASSIFICATION.md` | `immutable` |

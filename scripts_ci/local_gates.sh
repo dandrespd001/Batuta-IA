@@ -44,6 +44,7 @@ validar_anchors() {
 
 ejecutar "formato"            cargo fmt --all --check
 ejecutar "cero E/S (no_std)"  comprobar_no_std
+ejecutar "integración Spec Kit" python3 scripts_ci/check_speckit_integration.py
 ejecutar "specs, anchors e impacto" validar_anchors
 ejecutar "evidencia TDD"      python3 scripts_ci/validate_tdd_evidence.py
 ejecutar "modularidad"        python3 scripts_ci/check_modularity.py

@@ -13,11 +13,15 @@ copia fijada ya cacheada y se ejecuta fuera del gate permanente:
 
 ```sh
 uvx --from git+https://github.com/github/spec-kit.git@v1.0.2 \
+  specify --version
+uvx --from git+https://github.com/github/spec-kit.git@v1.0.2 \
   specify integration status --json
 ```
 
-Resultado esperado: `status: ok`, integración `codex` y cero ficheros administrados ausentes,
-modificados o inválidos. Ésta es la fuente oficial de SC-008.
+Se comprueban por separado dos fuentes: `specify --version` debe informar `1.0.2`; el JSON de estado
+debe declarar `status: ok`, integración `codex`, dos manifests y cero rutas o ficheros administrados
+ausentes, modificados, inválidos o sin comprobar. El JSON de integración es la fuente oficial del
+estado de SC-008; no se infiere de él la versión de la CLI.
 
 El equivalente permanente y offline no ejecuta Spec Kit:
 
@@ -80,8 +84,9 @@ evidencia comprueba además exactamente 19 registros legados.
 ./scripts_ci/local_gates.sh
 ```
 
-Resultado esperado: formato, `no_std`, specs/anchors, evidencia, modularidad, arquitectura, pruebas de
-gates, sidecar, Clippy y workspace tests terminan en verde sin red ni proveedores reales.
+Resultado esperado: formato, `no_std`, Spec Kit offline, specs/anchors, evidencia, modularidad,
+arquitectura, pruebas de gates, sidecar, Clippy y workspace tests terminan en verde sin red ni
+proveedores reales.
 
 Para probar correlación de deriva sobre una comparación concreta:
 

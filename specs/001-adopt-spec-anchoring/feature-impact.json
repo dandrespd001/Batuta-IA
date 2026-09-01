@@ -59,6 +59,7 @@
   },
   "living_specs_updated": true,
   "characterization": [
+    "scripts_ci/tests/test_check_speckit_integration.py",
     "scripts_ci/tests/test_validate_tdd_evidence.py"
   ]
 }
